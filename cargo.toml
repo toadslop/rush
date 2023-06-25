@@ -1,3 +1,5 @@
 [workspace]
-
 members = ["data_server", "shared", "ui_server"]
+
+[workspace.dependencies]
+actix-web ={ version = "4.3.1", features = ["macros"]}
