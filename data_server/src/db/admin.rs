@@ -12,13 +12,15 @@ pub async fn initialize_admin<T>(
 where
     T: surrealdb::Connection,
 {
+    println!("{:?}", INITIALIZERS);
+    db.signin(Root { username, password }).await?;
+
     let init_script = INITIALIZERS
-        .get_file(Path::new("./admin.surql"))
+        .get_file(Path::new("admin.surql"))
         .expect("Should have aquired the admin.surql file")
         .contents_utf8()
         .expect("Should have been able to get utf-8 contents of admin.surql file");
 
-    db.signin(Root { username, password }).await?;
     db.query(init_script).await?;
 
     Ok(())

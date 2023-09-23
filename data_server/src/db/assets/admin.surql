@@ -6,8 +6,8 @@ USE NAMESPACE admin_ns;
 DEFINE DATABASE admin_db;
 USE DATABASE admin_db;
 
-DEFINE TABLE instances SCHEMAFULL;
+DEFINE TABLE instance SCHEMAFULL;
 
-DEFINE FIELD host ON TABLE instances TYPE string ASSERT $value != NONE;
+DEFINE FIELD host ON TABLE instance TYPE string ASSERT $value != NONE;
 
 COMMIT TRANSACTION;

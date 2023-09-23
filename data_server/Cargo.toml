@@ -15,3 +15,7 @@ serde_json = "1.0.97"
 actix = "0.13.0"
 actix-rt = "2.8.0"
 include_dir = "0.7.3"
+tracing-actix-web = "0.7.5"
+tracing = { version = "0.1.37", features = ["log-always"]}
+env_logger = "0.10.0"
+log = "0.4.19"
