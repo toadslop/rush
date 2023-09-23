@@ -4,8 +4,11 @@ use opentelemetry::{
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, EnvFilter, Registry};
 
+use self::terminal_logger::TerminalLogger;
+mod terminal_logger;
+
 pub fn init_telemetry() {
-    let app_name = "tracing-actix-web-demo";
+    let app_name = env!("CARGO_PKG_NAME");
 
     global::set_text_map_propagator(TraceContextPropagator::new());
     let tracer = opentelemetry_jaeger::new_agent_pipeline()
@@ -15,7 +18,9 @@ pub fn init_telemetry() {
 
     let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("info"));
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
-    let formatting_layer = BunyanFormattingLayer::new(app_name.into(), std::io::stdout);
+
+    let formatting_layer = TerminalLogger::new(app_name.into(), std::io::stdout);
+
     let subscriber = Registry::default()
         .with(env_filter)
         .with(telemetry)
