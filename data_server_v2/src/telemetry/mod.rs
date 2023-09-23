@@ -1,11 +1,12 @@
 use opentelemetry::{
     global, runtime::TokioCurrentThread, sdk::propagation::TraceContextPropagator,
 };
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
-use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, EnvFilter, Registry};
-
-use self::terminal_logger::TerminalLogger;
-mod terminal_logger;
+use std::{
+    fs::{self, File},
+    sync::Arc,
+};
+use tracing_bunyan_formatter::JsonStorageLayer;
+use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, EnvFilter, Layer, Registry};
 
 pub fn init_telemetry() {
     let app_name = env!("CARGO_PKG_NAME");
@@ -16,16 +17,23 @@ pub fn init_telemetry() {
         .install_batch(TokioCurrentThread)
         .expect("Failed to install OpenTelemetry tracer.");
 
+    fs::create_dir_all("./logs").expect("Could not create directory"); // TODO: make log file a configuration options
+    let stdout_log = tracing_subscriber::fmt::layer().pretty();
+    let file = File::create("logs/debug.log");
+    let file = match file {
+        Ok(file) => file,
+        Err(error) => panic!("Error: {:?}", error),
+    };
+    let debug_log = tracing_subscriber::fmt::layer().with_writer(Arc::new(file));
     let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("info"));
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
-
-    let formatting_layer = TerminalLogger::new(app_name.into(), std::io::stdout);
 
     let subscriber = Registry::default()
         .with(env_filter)
         .with(telemetry)
         .with(JsonStorageLayer)
-        .with(formatting_layer);
+        .with(stdout_log.and_then(debug_log));
+
     tracing::subscriber::set_global_default(subscriber)
         .expect("Failed to install `tracing` subscriber.")
 }
