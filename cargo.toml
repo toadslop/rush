@@ -1,5 +1,7 @@
 [workspace]
-members = ["data_server", "shared", "ui_server"]
+members = ["data_server", "shared", "ui_server", "data_server_v2"]
 
 [workspace.dependencies]
-actix-web ={ version = "4.3.1", features = ["macros"]}
+actix-web = { version = "4.3.1", features = ["macros"] }
+
+workspace.resolver = "2"
