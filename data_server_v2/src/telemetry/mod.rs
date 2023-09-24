@@ -18,7 +18,7 @@ pub fn init_telemetry() {
         .expect("Failed to install OpenTelemetry tracer.");
 
     fs::create_dir_all("./logs").expect("Could not create directory"); // TODO: make log file a configuration options
-    let stdout_log = tracing_subscriber::fmt::layer().pretty();
+    let stdout_log = tracing_subscriber::fmt::layer().pretty(); // TODO: make stdout log a configuration option
     let file = File::create("logs/debug.log");
     let file = match file {
         Ok(file) => file,
