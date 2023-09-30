@@ -3,12 +3,13 @@ use opentelemetry::{
 };
 use std::{
     fs::{self, File},
+    io,
     sync::Arc,
 };
 use tracing_bunyan_formatter::JsonStorageLayer;
 use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, EnvFilter, Layer, Registry};
 
-pub fn init_telemetry() {
+pub fn init_telemetry() -> io::Result<()> {
     let app_name = env!("CARGO_PKG_NAME");
 
     global::set_text_map_propagator(TraceContextPropagator::new());
@@ -19,11 +20,8 @@ pub fn init_telemetry() {
 
     fs::create_dir_all("./logs").expect("Could not create directory"); // TODO: make log file a configuration options
     let stdout_log = tracing_subscriber::fmt::layer().pretty(); // TODO: make stdout log a configuration option
-    let file = File::create("logs/debug.log");
-    let file = match file {
-        Ok(file) => file,
-        Err(error) => panic!("Error: {:?}", error),
-    };
+    let file = File::create("logs/debug.log")?;
+
     let debug_log = tracing_subscriber::fmt::layer().with_writer(Arc::new(file));
     let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("info"));
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
@@ -35,5 +33,7 @@ pub fn init_telemetry() {
         .with(stdout_log.and_then(debug_log));
 
     tracing::subscriber::set_global_default(subscriber)
-        .expect("Failed to install `tracing` subscriber.")
+        .expect("Failed to install `tracing` subscriber.");
+
+    Ok(())
 }
