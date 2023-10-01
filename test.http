@@ -1,0 +1,10 @@
+POST http://localhost:8080/instance HTTP/1.1
+content-type: application/json
+
+{
+    "name": "sample"
+}
+
+###
+GET http://my-instance.rush.com:8080/health_check HTTP/1.1
+content-type: application/json

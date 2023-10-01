@@ -7,6 +7,7 @@ edition = "2021"
 actix-web.workspace = true
 anyhow = "1.0.75"
 config = "0.13.3"
+futures-util = "0.3.28"
 include_dir = "0.7.3"
 once_cell = "1.18.0"
 opentelemetry = "0.20.0"
