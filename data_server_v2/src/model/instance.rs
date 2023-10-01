@@ -2,5 +2,5 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Instance {
-    name: String,
+    pub name: String,
 }

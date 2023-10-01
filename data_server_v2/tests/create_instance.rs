@@ -1,3 +1,5 @@
+use rush_data_server::{database::DB, model::instance::Instance};
+
 use crate::util::spawn_app;
 
 mod util;
@@ -18,7 +20,13 @@ async fn create_instance_returns_200_for_valid_input() {
         .await
         .expect("Failed to execute request.");
 
+    DB.use_ns("root").use_db("root").await.unwrap();
+
+    let result: Vec<Instance> = DB.select("instance").await.unwrap();
+    let name = &result.get(0).unwrap().name;
+
     assert_eq!(200, response.status().as_u16());
+    assert_eq!("my-instance", name);
 }
 
 #[actix_web::test]

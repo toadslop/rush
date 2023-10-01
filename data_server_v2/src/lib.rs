@@ -5,7 +5,7 @@ use tracing_actix_web::TracingLogger;
 
 pub mod configuration;
 pub mod database;
-mod model;
+pub mod model;
 mod routes;
 pub mod telemetry;
 
