@@ -1,9 +1,13 @@
 use actix_web::{web, HttpResponse};
+use surrealdb::{engine::any::Any, Surreal};
 
-use crate::{database::DB, model::instance::Instance};
+use crate::model::instance::Instance;
 
-pub async fn create_instance(instance: web::Json<Instance>) -> HttpResponse {
-    let instance: Vec<Instance> = DB
+pub async fn create_instance(
+    instance: web::Json<Instance>,
+    db: web::Data<Surreal<Any>>,
+) -> HttpResponse {
+    let instance: Vec<Instance> = db
         .create("instance")
         .content(instance)
         .await

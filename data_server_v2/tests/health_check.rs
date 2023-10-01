@@ -6,7 +6,7 @@ mod util;
 
 #[actix_web::test]
 async fn health_check_works() {
-    let address = spawn_app().await.expect("Failed to spawn app.");
+    let (address, _) = spawn_app().await.expect("Failed to spawn app.");
 
     let client = reqwest::Client::new();
 

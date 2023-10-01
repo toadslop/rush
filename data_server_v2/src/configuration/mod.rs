@@ -62,7 +62,7 @@ pub fn get_configuration() -> Result<Settings, ConfigError> {
     println!("{}", configuration_directory.to_str().unwrap());
 
     let environment: Environment = std::env::var("APP_ENVIRONMENT")
-        .unwrap_or_else(|_| "local".into())
+        .unwrap_or_else(|_| "dev".into())
         .try_into()
         .expect("Failed to parse APP_ENVIRONMENT.");
 

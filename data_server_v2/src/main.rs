@@ -16,8 +16,8 @@ async fn main() -> io::Result<()> {
 
     let address = format!("127.0.0.1:{}", application_port);
 
-    init_db(database).await.expect("Could not initialize db");
+    let db = init_db(database).await.expect("Could not initialize db");
 
     let listener = TcpListener::bind(address)?;
-    run(listener).await
+    run(listener, db).await
 }

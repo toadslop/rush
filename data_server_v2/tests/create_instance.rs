@@ -1,4 +1,4 @@
-use rush_data_server::{database::DB, model::instance::Instance};
+use rush_data_server::model::instance::Instance;
 
 use crate::util::spawn_app;
 
@@ -6,7 +6,7 @@ mod util;
 
 #[actix_web::test]
 async fn create_instance_returns_200_for_valid_input() {
-    let address = spawn_app().await.expect("Failed to spawn app.");
+    let (address, db) = spawn_app().await.expect("Failed to spawn app.");
 
     let client = reqwest::Client::new();
 
@@ -20,9 +20,9 @@ async fn create_instance_returns_200_for_valid_input() {
         .await
         .expect("Failed to execute request.");
 
-    DB.use_ns("root").use_db("root").await.unwrap();
+    db.use_ns("root").use_db("root").await.unwrap();
 
-    let result: Vec<Instance> = DB.select("instance").await.unwrap();
+    let result: Vec<Instance> = db.select("instance").await.unwrap();
     let name = &result.get(0).unwrap().name;
 
     assert_eq!(200, response.status().as_u16());
@@ -31,7 +31,7 @@ async fn create_instance_returns_200_for_valid_input() {
 
 #[actix_web::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
-    let address = spawn_app().await.expect("Failed to spawn app.");
+    let (address, _) = spawn_app().await.expect("Failed to spawn app.");
     let client = reqwest::Client::new();
     let test_cases = [
         ("", "no data"),
