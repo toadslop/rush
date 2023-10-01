@@ -73,6 +73,10 @@ impl Display for InstanceName {
     }
 }
 
+// TODO: eventually, we'll need to be able to handle any domain sent to this url
+// We will need a mapping of urls to instance names so that we can identify
+// which instance a domain is associated with
+
 impl TryFrom<&str> for InstanceName {
     type Error = &'static str;
 
