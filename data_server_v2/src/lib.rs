@@ -3,7 +3,8 @@ use routes::{health_check, instance::create_instance};
 use std::{io, net::TcpListener};
 use tracing_actix_web::TracingLogger;
 
-mod database;
+pub mod configuration;
+pub mod database;
 mod model;
 mod routes;
 pub mod telemetry;
