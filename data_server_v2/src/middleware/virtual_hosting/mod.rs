@@ -47,13 +47,18 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
+        tracing::debug_span!("Virtual host extractor middleware");
+        tracing::debug!("Checking for instance name in host");
         let srv = self.service.clone();
 
         async move {
             let instance: Result<InstanceName, _> = req.connection_info().host().try_into();
 
             if let Ok(instance) = instance {
+                tracing::debug!("Instance name found: {instance}");
                 req.extensions_mut().insert(instance);
+            } else {
+                tracing::debug!("No instance name found");
             }
 
             let res = srv.call(req).await?;

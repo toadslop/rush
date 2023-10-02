@@ -9,7 +9,7 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub application_port: u16,
 }
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct DatabaseSettings {
     pub username: String,
     pub password: String,
@@ -56,17 +56,22 @@ impl DatabaseSettings {
     }
 }
 
+#[tracing::instrument(name = "Loading configuration")]
 pub fn get_configuration() -> Result<Settings, ConfigError> {
+    tracing::debug!("Loading configuration");
     let base_path = std::env::current_dir().expect("Failed to determine the current directory");
+    tracing::trace!("Config base path is: {:?}", base_path);
     let configuration_directory = base_path.join("config");
-    println!("{}", configuration_directory.to_str().unwrap());
+    tracing::trace!("Config directory path is: {:?}", configuration_directory);
 
     let environment: Environment = std::env::var("APP_ENVIRONMENT")
         .unwrap_or_else(|_| "dev".into())
         .try_into()
         .expect("Failed to parse APP_ENVIRONMENT.");
+    tracing::trace!("App environment is: {:?}", environment);
 
     let environment_filename = format!("config.{}.yaml", environment.as_ref());
+    tracing::trace!("Environment filename is: {:?}", environment_filename);
 
     let settings = Config::builder()
         .add_source(config::File::from(
@@ -76,10 +81,14 @@ pub fn get_configuration() -> Result<Settings, ConfigError> {
             configuration_directory.join(environment_filename),
         ))
         .build()?;
+    tracing::trace!("Settings loaded {:?}", settings);
 
-    settings.try_deserialize::<Settings>()
+    let settings = settings.try_deserialize::<Settings>();
+    tracing::debug!("Configuration loaded");
+    settings
 }
 
+#[derive(Debug)]
 pub enum Environment {
     Dev,
     Test,

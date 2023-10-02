@@ -3,13 +3,15 @@ use opentelemetry::{
 };
 use std::{
     fs::{self, File},
-    io,
+    io::{self, stdout},
     sync::Arc,
 };
 use tracing_bunyan_formatter::JsonStorageLayer;
+use tracing_log::LogTracer;
 use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, EnvFilter, Layer, Registry};
 
 pub fn init_telemetry() -> io::Result<()> {
+    LogTracer::init().expect("Failed to set logger");
     let app_name = env!("CARGO_PKG_NAME");
 
     global::set_text_map_propagator(TraceContextPropagator::new());
@@ -19,7 +21,9 @@ pub fn init_telemetry() -> io::Result<()> {
         .expect("Failed to install OpenTelemetry tracer.");
 
     fs::create_dir_all("./logs").expect("Could not create directory"); // TODO: make log file a configuration options
-    let stdout_log = tracing_subscriber::fmt::layer().pretty(); // TODO: make stdout log a configuration option
+    let stdout_log = tracing_subscriber::fmt::layer()
+        .pretty()
+        .with_writer(stdout); // TODO: make stdout log a configuration option
     let file = File::create("logs/debug.log")?;
 
     let debug_log = tracing_subscriber::fmt::layer().with_writer(Arc::new(file));
