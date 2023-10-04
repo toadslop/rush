@@ -5,6 +5,22 @@ content-type: application/json
     "name": "sample"
 }
 
-###
+### Should do health check
 GET http://my-instance.rush.com:8080/health_check HTTP/1.1
 content-type: application/json
+
+### Should do health check
+GET http://localhost:8080/health_check HTTP/1.1
+content-type: application/json
+
+### Should return the instance name
+GET http://my-instance.rush.com:8080/ HTTP/1.1
+content-type: application/json
+
+### Shouldn't work
+POST http://my-instance.rush.com:8080/instance HTTP/1.1
+content-type: application/json
+
+{
+    "name": "sample"
+}

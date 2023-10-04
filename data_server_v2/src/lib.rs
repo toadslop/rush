@@ -3,16 +3,17 @@ use actix_web::{
     App, HttpServer,
 };
 use middleware::virtual_hosting::VirtualHostProcessor;
-use routes::{health_check, instance::create_instance};
+use services::{health_check, instance::instance_service, root::root_service};
 use std::{io, net::TcpListener};
 use surrealdb::{engine::any::Any, Surreal};
 use tracing_actix_web::TracingLogger;
 
 pub mod configuration;
 pub mod database;
+mod guards;
 mod middleware;
 pub mod model;
-mod routes;
+mod services;
 pub mod telemetry;
 
 pub async fn run(listener: TcpListener, db: Surreal<Any>) -> io::Result<()> {
@@ -22,8 +23,9 @@ pub async fn run(listener: TcpListener, db: Surreal<Any>) -> io::Result<()> {
         App::new()
             .wrap(VirtualHostProcessor)
             .wrap(TracingLogger::default())
+            .configure(root_service)
+            .configure(instance_service)
             .route("/health_check", web::get().to(health_check))
-            .route("/instance", web::post().to(create_instance))
             .app_data(Data::new(db.clone()))
     })
     .listen(listener)?
