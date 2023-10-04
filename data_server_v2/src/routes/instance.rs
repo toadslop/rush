@@ -1,12 +1,10 @@
 use crate::model::instance::Instance;
 use actix_web::{web, HttpResponse};
 use surrealdb::{engine::any::Any, Error, Surreal};
-use uuid::Uuid;
 
 #[tracing::instrument(
     skip(db),
     fields(
-    request_id = %Uuid::new_v4(),
     name = %instance.name,
     )
     )]

@@ -1,18 +1,25 @@
-use std::fmt::Display;
-
 use config::{Config, ConfigError};
+use secrecy::{ExposeSecret, Secret};
 use serde::Deserialize;
+use std::fmt::Display;
 use surrealdb::opt::auth::Root;
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
-    pub application_port: u16,
+    pub application: ApplicationSettings,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ApplicationSettings {
+    pub port: u16,
+    pub host: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct DatabaseSettings {
     pub username: String,
-    pub password: String,
+    pub password: Secret<String>,
     pub database_name: String,
     pub connection: ConnectionType,
 }
@@ -51,7 +58,7 @@ impl DatabaseSettings {
     pub fn get_root_credentials(&self) -> Root {
         Root {
             username: &self.username,
-            password: &self.password,
+            password: self.password.expose_secret(),
         }
     }
 }

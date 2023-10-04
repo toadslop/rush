@@ -1,5 +1,5 @@
 use rush_data_server::{
-    configuration::{get_configuration, Settings},
+    configuration::{get_configuration, ApplicationSettings, Settings},
     database::init_db,
     run,
     telemetry::init_telemetry,
@@ -11,10 +11,11 @@ async fn main() -> io::Result<()> {
     init_telemetry()?;
     let Settings {
         database,
-        application_port,
+        application,
     } = get_configuration().expect("Failed to read configuration.");
 
-    let address = format!("127.0.0.1:{}", application_port);
+    let ApplicationSettings { host, port } = application;
+    let address = format!("{host}:{port}");
 
     let db = init_db(database).await.expect("Could not initialize db");
 
