@@ -36,6 +36,7 @@ DEFINE SCOPE account SESSION 15m
 DEFINE TABLE instance SCHEMAFULL;
 
 DEFINE FIELD name ON instance TYPE string;
+DEFINE FIELD account ON instance TYPE record(instance);
 DEFINE INDEX nameIndex ON TABLE instance COLUMNS name UNIQUE;
 
 COMMIT TRANSACTION;

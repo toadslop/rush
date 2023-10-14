@@ -1,19 +1,15 @@
-use crate::model::instance::Instance;
-use actix_web::{web, HttpResponse};
+use crate::model::account::Account;
+use actix_web::web;
+use actix_web::HttpResponse;
 use surrealdb::{engine::any::Any, Surreal};
 
-#[tracing::instrument(
-    skip(db),
-    fields(
-    name = %instance.name,
-    )
-    )]
-pub async fn create_instance(
-    instance: web::Json<Instance>,
+#[tracing::instrument]
+pub async fn create_route(
+    instance: web::Json<Account>,
     db: web::Data<Surreal<Any>>,
 ) -> HttpResponse {
-    tracing::trace!("Reached create_instance route handler");
-    let resp = match create_instance_db(instance, db).await {
+    tracing::trace!("Reached create_route route handler");
+    let resp = match create_account_db(instance, db).await {
         Ok(instance) => HttpResponse::Ok().json(instance),
         Err(_) => HttpResponse::InternalServerError().finish(),
     };
@@ -22,13 +18,13 @@ pub async fn create_instance(
 }
 
 #[tracing::instrument(skip(db))]
-async fn create_instance_db(
-    instance: web::Json<Instance>,
+async fn create_account_db(
+    instance: web::Json<Account>,
     db: web::Data<Surreal<Any>>,
-) -> Result<Vec<Instance>, surrealdb::Error> {
+) -> Result<Vec<Account>, surrealdb::Error> {
     tracing::info!("Attempting to saving new instance to the db");
-    let instance = db
-        .create::<Vec<Instance>>("instance")
+    let account = db
+        .create::<Vec<Account>>("account")
         .content(instance)
         .await
         .map_err(|e| {
@@ -36,5 +32,5 @@ async fn create_instance_db(
             e
         })?;
     tracing::info!("Success");
-    Ok(instance)
+    Ok(account)
 }
