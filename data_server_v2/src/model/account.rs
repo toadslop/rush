@@ -1,7 +1,6 @@
+use super::instance::Instance;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::Thing;
-
-use super::instance::Instance;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CreateAccount {
@@ -16,4 +15,16 @@ pub struct Account {
     pub name: Option<String>,
     pub confirmed: Option<bool>,
     pub instances: Option<Vec<Instance>>,
+}
+
+impl From<CreateAccount> for Account {
+    fn from(value: CreateAccount) -> Self {
+        Self {
+            id: Some(Thing::from((value.email.as_str(), value.email.as_str()))),
+            email: Some(value.email),
+            name: None,
+            confirmed: None,
+            instances: Some(vec![]),
+        }
+    }
 }

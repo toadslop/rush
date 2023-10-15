@@ -30,7 +30,7 @@ async fn create_instance_returns_200_for_valid_input() {
 }
 
 #[actix_web::test]
-async fn subscribe_returns_a_400_when_data_is_missing() {
+async fn create_instance_a_400_when_data_is_missing() {
     let (address, _) = spawn_app().await.expect("Failed to spawn app.");
     let client = reqwest::Client::new();
     let test_cases = [
