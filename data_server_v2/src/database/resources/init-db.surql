@@ -10,12 +10,12 @@ DEFINE TABLE account SCHEMAFULL
 	PERMISSIONS
 		FOR select, update WHERE id = $auth.id;
 
-DEFINE FIELD name ON account TYPE string PERMISSIONS FOR select, create, update WHERE id = $auth.id;
+DEFINE FIELD name ON account TYPE option<string> PERMISSIONS FOR select, create, update WHERE id = $auth.id DEFAULT NONE;
 # email may not be changed
-DEFINE FIELD email ON account TYPE string ASSERT string::is::email($value) PERMISSIONS NONE;
+DEFINE FIELD email ON account TYPE string ASSERT string::is::email($value) AND string::len($value) <= 320 AND string::len($value) > 0 PERMISSIONS NONE;
 DEFINE FIELD password ON account TYPE string PERMISSIONS FOR select, create, update WHERE id = $auth.id;
 DEFINE FIELD confirmed ON account TYPE bool PERMISSIONS NONE DEFAULT false;
-DEFINE FIELD instances ON account TYPE array PERMISSIONS FOR select, create, update WHERE id = $auth.id;
+DEFINE FIELD instances ON account TYPE array PERMISSIONS FOR select, create, update WHERE id = $auth.id DEFAULT [];
 DEFINE FIELD instances.* ON TABLE account TYPE record(instance);
 DEFINE INDEX email ON account FIELDS email UNIQUE;
 

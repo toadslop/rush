@@ -15,6 +15,7 @@ mod middleware;
 pub mod model;
 mod services;
 pub mod telemetry;
+pub mod util;
 
 pub async fn run(listener: TcpListener, db: Surreal<Any>) -> io::Result<()> {
     // TODO: create instance guard to handle directing to instance handling or main admin instance

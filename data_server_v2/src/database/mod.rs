@@ -15,7 +15,15 @@ pub async fn init_db(settings: DatabaseSettings) -> anyhow::Result<Surreal<Any>>
     tracing::info!("Initializing the database");
     tracing::debug!("Attempting to connect to the database");
     let db: Surreal<Any> = connect(settings.connection.get_conn_string()).await?;
+
     tracing::debug!("Connection success");
+
+    tracing::debug!("Accessing to root ns and root db");
+    db.use_ns("root")
+        .use_db("root")
+        .await
+        .expect("Could not use the root namespace or root db");
+    tracing::debug!("Accessing success");
 
     if settings.connection == ConnectionType::InMemory {
         tracing::debug!("Initializing in-memory database. This should be used for testing only.");
@@ -32,13 +40,6 @@ pub async fn init_db(settings: DatabaseSettings) -> anyhow::Result<Surreal<Any>>
             .expect("Failed to run init_db script on database");
         tracing::trace!("Initialization query success")
     };
-
-    tracing::debug!("Accessing to root ns and root db");
-    db.use_ns("root")
-        .use_db("root")
-        .await
-        .expect("Could not use the root namespace or root db");
-    tracing::debug!("Accessing success");
 
     tracing::info!("Initialation success");
     Ok(db)
