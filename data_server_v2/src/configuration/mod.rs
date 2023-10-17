@@ -66,15 +66,19 @@ impl DatabaseSettings {
 #[tracing::instrument(name = "Loading configuration")]
 pub fn get_configuration() -> Result<Settings, ConfigError> {
     tracing::debug!("Loading configuration");
-    let base_path = std::env::current_dir().expect("Failed to determine the current directory");
+    let base_path = std::env::current_dir()
+        .map_err(|e| tracing::error!("Failed to locate current_dir: {e}"))
+        .unwrap();
     tracing::trace!("Config base path is: {:?}", base_path);
+
     let configuration_directory = base_path.join("config");
     tracing::trace!("Config directory path is: {:?}", configuration_directory);
 
     let environment: Environment = std::env::var("APP_ENVIRONMENT")
         .unwrap_or_else(|_| "dev".into())
         .try_into()
-        .expect("Failed to parse APP_ENVIRONMENT.");
+        .map_err(|e| tracing::error!("Failed to load env var APP_ENVIRONEMTN: {e}"))
+        .unwrap();
     tracing::trace!("App environment is: {:?}", environment);
 
     let environment_filename = format!("config.{}.yaml", environment.as_ref());
