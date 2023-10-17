@@ -37,7 +37,8 @@ pub async fn init_db(settings: DatabaseSettings) -> anyhow::Result<Surreal<Any>>
 
         db.query(query)
             .await
-            .expect("Failed to run init_db script on database");
+            .map_err(|e| format!("Failed to run init_db script on database: {e}"))
+            .unwrap();
         tracing::trace!("Initialization query success")
     };
 

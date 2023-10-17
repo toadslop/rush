@@ -2,7 +2,25 @@ POST http://localhost:8080/instance HTTP/1.1
 content-type: application/json
 
 {
-    "name": "s ample"
+    "name": "sample"
+}
+
+### should fail
+POST http://localhost:8080/account HTTP/1.1
+content-type: application/json
+
+{
+    "email": "",
+    "password": ""
+}
+
+### should work
+POST http://localhost:8080/account HTTP/1.1
+content-type: application/json
+
+{
+    "email": "test@test.com",
+    "password": "something"
 }
 
 ### Should do health check

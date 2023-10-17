@@ -7,6 +7,7 @@ use rush_data_server::model::{
     instance::{CreateInstanceDto, Instance},
     Table,
 };
+use surrealdb::opt::RecordId;
 
 use crate::util::spawn_app;
 
@@ -28,9 +29,11 @@ async fn create_instance_returns_200_for_valid_input() {
         .expect("Failed to create dummy account.");
     let client = reqwest::Client::new();
 
+    let instance_name = "my-instance";
+
     let body = CreateInstanceDto {
-        name: "my-instance".into(),
-        account_id: account_email,
+        name: instance_name.into(),
+        account_id: account_email.clone(),
     };
 
     let response = client
@@ -45,15 +48,38 @@ async fn create_instance_returns_200_for_valid_input() {
 
     db.use_ns("root").use_db("root").await.unwrap();
 
-    let mut result: Vec<Instance> = db.select("instance").await.unwrap();
-    let name = result
-        .get_mut(0)
+    let instance: Option<Instance> = db.select((Instance::name(), instance_name)).await.unwrap();
+    let name = instance
         .expect("An instance should have been created")
         .name
-        .take()
         .expect("Instance should have a name");
 
-    assert_eq!("my-instance", name);
+    assert_eq!(instance_name, name);
+
+    let mut result = db
+        .query("SELECT instances[WHERE $instance_id] FROM $account_id")
+        .bind((
+            "instance_id",
+            RecordId::from((Instance::name(), instance_name)).to_string(),
+        ))
+        .bind((
+            "account_id",
+            RecordId::from((Account::name(), account_email.as_ref())),
+        ))
+        .await
+        .map_err(|e| e.to_string())
+        .unwrap();
+
+    let account: Option<Account> = result.take(0).map_err(|e| e.to_string()).unwrap();
+
+    let account = account.unwrap();
+    let instances = account.instances.unwrap();
+    let instance_id = instances.get(0).unwrap();
+
+    assert_eq!(
+        *instance_id,
+        RecordId::from((Instance::name(), instance_name))
+    )
 }
 
 #[actix_web::test]

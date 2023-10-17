@@ -37,7 +37,7 @@ impl From<CreateInstanceDto> for CreateInstanceDb {
 pub struct Instance {
     pub name: Option<String>,
     pub account: Option<RecordId>,
-    pub id: RecordId,
+    pub id: Option<RecordId>,
 }
 
 impl Table for Instance {

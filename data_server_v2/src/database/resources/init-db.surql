@@ -38,5 +38,8 @@ DEFINE TABLE instance SCHEMAFULL;
 DEFINE FIELD name ON instance TYPE string;
 DEFINE FIELD account ON instance TYPE record(account);
 DEFINE INDEX nameIndex ON TABLE instance COLUMNS name UNIQUE;
+DEFINE EVENT relate_account ON TABLE instance WHEN $event = "CREATE" THEN {
+	UPDATE $after.account SET instances += $after.id;
+};
 
 COMMIT TRANSACTION;

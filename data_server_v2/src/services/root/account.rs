@@ -42,7 +42,6 @@ async fn create_account_db(
             e
         })?;
 
-    dbg!(&account);
     tracing::info!("Success");
     Ok(account)
 }

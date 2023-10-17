@@ -1,4 +1,4 @@
-use super::{email_address::EmailAddress, instance::Instance, CreateTable, Table};
+use super::{email_address::EmailAddress, CreateTable, Table};
 use serde::{Deserialize, Serialize};
 use surrealdb::opt::RecordId;
 
@@ -41,7 +41,7 @@ pub struct Account {
     pub email: Option<EmailAddress>,
     pub name: Option<String>,
     pub confirmed: Option<bool>,
-    pub instances: Option<Vec<Instance>>,
+    pub instances: Option<Vec<RecordId>>,
 }
 
 impl Table for Account {

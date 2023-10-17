@@ -33,8 +33,7 @@ async fn create_instance_db(
 ) -> Result<Option<Instance>, surrealdb::Error> {
     tracing::info!("Attempting to saving new instance to the db");
     let instance: CreateInstanceDb = instance.into_inner().into();
-    dbg!(&instance);
-    dbg!(serde_json::to_string(&instance).unwrap());
+
     let instance = db
         .create::<Option<Instance>>((Instance::name(), instance.id()))
         .content(instance)
