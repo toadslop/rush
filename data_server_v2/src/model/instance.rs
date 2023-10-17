@@ -1,10 +1,49 @@
-use std::{fmt::Display, ops::Deref};
-
 use serde::{Deserialize, Serialize};
+use std::{fmt::Display, ops::Deref};
+use surrealdb::opt::RecordId;
+
+use super::{account::Account, CreateTable, Table};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateInstanceDto {
+    pub name: String,
+    pub account_id: String,
+}
+
+impl CreateTable for CreateInstanceDb {
+    fn id(&self) -> &str {
+        &self.name
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CreateInstanceDb {
+    name: String,
+    account: RecordId,
+    id: RecordId,
+}
+
+impl From<CreateInstanceDto> for CreateInstanceDb {
+    fn from(value: CreateInstanceDto) -> Self {
+        Self {
+            name: value.name.to_owned(),
+            account: RecordId::from((Account::name(), value.account_id.as_ref())),
+            id: RecordId::from((Instance::name(), value.name.as_ref())),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Instance {
-    pub name: String,
+    pub name: Option<String>,
+    pub account: Option<RecordId>,
+    pub id: RecordId,
+}
+
+impl Table for Instance {
+    fn name() -> &'static str {
+        "instance"
+    }
 }
 
 #[derive(Debug)]

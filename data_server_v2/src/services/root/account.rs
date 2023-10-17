@@ -2,6 +2,8 @@ use crate::model::account::Account;
 use crate::model::account::CreateAccountDb;
 use crate::model::account::CreateAccountDto;
 use crate::model::CreateTable;
+use crate::model::Table;
+use crate::services::util::HttpError;
 use actix_web::web;
 use actix_web::HttpResponse;
 use surrealdb::{engine::any::Any, Surreal};
@@ -14,7 +16,10 @@ pub async fn create_account(
     tracing::trace!("Reached create_account route handler");
     let resp = match create_account_db(instance, db).await {
         Ok(instance) => HttpResponse::Ok().json(instance),
-        Err(_) => HttpResponse::InternalServerError().finish(), // TODO: properly respond to errors, not just send 500
+        Err(e) => {
+            let e: HttpError = e.into();
+            e.inter_inner()
+        }
     };
     tracing::trace!("Handler exited");
     resp
@@ -29,11 +34,11 @@ async fn create_account_db(
     let account: CreateAccountDb = account.into_inner().into();
 
     let account = db
-        .create::<Option<Account>>(("account", account.id()))
+        .create::<Option<Account>>((Account::name(), account.id()))
         .content(account)
         .await
         .map_err(|e| {
-            tracing::error!("Failed to persist account to db: {}", e.to_string());
+            tracing::error!("Failed to persist account to db: {e}");
             e
         })?;
 

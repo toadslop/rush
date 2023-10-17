@@ -1,6 +1,6 @@
 use super::{email_address::EmailAddress, instance::Instance, CreateTable, Table};
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::Thing;
+use surrealdb::opt::RecordId;
 
 const TABLE_NAME: &str = "account";
 
@@ -16,7 +16,7 @@ pub struct CreateAccountDto {
 pub struct CreateAccountDb {
     email: String,
     password: String,
-    id: Thing,
+    id: RecordId,
 }
 
 impl CreateTable for CreateAccountDb {
@@ -30,14 +30,14 @@ impl From<CreateAccountDto> for CreateAccountDb {
         Self {
             email: value.email.clone(),
             password: value.password,
-            id: Thing::from((Account::name(), value.email.as_str())),
+            id: RecordId::from((Account::name(), value.email.as_str())),
         }
     }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Account {
-    pub id: Option<Thing>,
+    pub id: Option<RecordId>,
     pub email: Option<EmailAddress>,
     pub name: Option<String>,
     pub confirmed: Option<bool>,
