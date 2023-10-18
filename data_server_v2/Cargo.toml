@@ -18,7 +18,7 @@ opentelemetry-jaeger = { version = "0.19.0", features = [
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.107"
-surrealdb = { version = "1.0.0", features = ["kv-mem"] }
+surrealdb = { version = "1.0.0", features = ["kv-mem", "scripting"] }
 thiserror = "1.0.49"
 tracing = { version = "0.1.37" }
 tracing-actix-web = "0.7.6"
@@ -33,7 +33,8 @@ unicode-segmentation = "1.10.1"
 uuid = "1.4.1"
 
 [dev-dependencies]
-fake = "2.8.0"
+fake = { version = "2.8.0", features = ["derive", "dummy"] }
+rand = "0.8.5"
 reqwest = { version = "0.11.20", features = ["json"] }
 
 [lib]
@@ -42,6 +43,9 @@ path = "src/lib.rs"
 [[bin]]
 path = "src/main.rs"
 name = "rush_data_server_bin"
+
+[features]
+integration-tests = []
 
 # On Windows
 # ```

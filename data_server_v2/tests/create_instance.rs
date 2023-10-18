@@ -1,39 +1,38 @@
 use fake::{
-    faker::internet::en::{Password, SafeEmail},
-    Fake,
+    faker::{
+        company::{en::BsAdj, en::BsNoun},
+        internet::en::SafeEmail,
+    },
+    Fake, Faker,
 };
 use rush_data_server::model::{
-    account::{Account, CreateAccountDb, CreateAccountDto},
+    account::{Account, CreateAccountDb},
     instance::{CreateInstanceDto, Instance},
     Table,
 };
 use surrealdb::opt::RecordId;
-
-use crate::util::spawn_app;
+mod fakes;
+use crate::{fakes::DummyAccountDto, util::spawn_app};
 
 mod util;
 
 #[actix_web::test]
 async fn create_instance_returns_200_for_valid_input() {
     let (address, db) = spawn_app().await.expect("Failed to spawn app.");
-    let account_email = SafeEmail().fake::<String>();
-    let password = Password(8..16).fake();
-    let account: CreateAccountDb = CreateAccountDto {
-        email: account_email.clone(),
-        password,
-    }
-    .into();
-    db.create::<Option<Account>>((Account::name(), &account_email))
-        .content(account)
+    let _dummy_account: DummyAccountDto = Faker.fake();
+    let dummy_account: CreateAccountDb = (*_dummy_account).clone().into();
+    db.create::<Option<Account>>((Account::name(), _dummy_account.email.clone()))
+        .content(&dummy_account)
         .await
-        .expect("Failed to create dummy account.");
+        .map_err(|e| e.to_string())
+        .unwrap();
     let client = reqwest::Client::new();
 
     let instance_name = "my-instance";
 
     let body = CreateInstanceDto {
         name: instance_name.into(),
-        account_id: account_email.clone(),
+        account_id: _dummy_account.email.clone(),
     };
 
     let response = client
@@ -64,7 +63,7 @@ async fn create_instance_returns_200_for_valid_input() {
         ))
         .bind((
             "account_id",
-            RecordId::from((Account::name(), account_email.as_ref())),
+            RecordId::from((Account::name(), _dummy_account.email.clone().as_ref())),
         ))
         .await
         .map_err(|e| e.to_string())
@@ -87,15 +86,27 @@ async fn create_instance_a_400_when_data_is_missing() {
     let (address, _) = spawn_app().await.expect("Failed to spawn app.");
     let client = reqwest::Client::new();
     let test_cases = [
-        ("", "no data"),
-        (r#"{ "notName": "bobby" }"#, "missing the instances name"),
+        (
+            CreateInstanceDto {
+                name: format!("{}_{}", BsAdj().fake::<String>(), BsNoun().fake::<String>()),
+                account_id: "".into(),
+            },
+            "no account id",
+        ),
+        (
+            CreateInstanceDto {
+                name: "".into(),
+                account_id: SafeEmail().fake(),
+            },
+            "no instance name",
+        ),
     ];
 
     for (invalid_body, error_message) in test_cases {
         let response = client
             .post(&format!("{}/instance", &address))
             .header("Content-Type", "application/json")
-            .body(invalid_body)
+            .json::<CreateInstanceDto>(&invalid_body)
             .send()
             .await
             .expect("Failed to execute request.");

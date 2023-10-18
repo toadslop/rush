@@ -10,9 +10,9 @@ DEFINE TABLE account SCHEMAFULL
 	PERMISSIONS
 		FOR select, update WHERE id = $auth.id;
 
-DEFINE FIELD name ON account TYPE option<string> PERMISSIONS FOR select, create, update WHERE id = $auth.id DEFAULT NONE;
+DEFINE FIELD name ON account TYPE string ASSERT string::len($value) <= 50 PERMISSIONS FOR select, create, update WHERE id = $auth.id;
 # email may not be changed
-DEFINE FIELD email ON account TYPE string ASSERT string::is::email($value) AND string::len($value) <= 320 PERMISSIONS NONE;
+DEFINE FIELD email ON account TYPE string ASSERT string::is::email($value) AND string::len($value) <= 320 PERMISSIONS FOR select, create WHERE id = $auth.id;
 DEFINE FIELD password ON account TYPE string PERMISSIONS FOR select, create, update WHERE id = $auth.id ASSERT string::len($value) >= 8 AND string::len($value) <= 16;
 DEFINE FIELD confirmed ON account TYPE bool PERMISSIONS NONE DEFAULT false;
 DEFINE FIELD instances ON account TYPE array PERMISSIONS FOR select, create, update WHERE id = $auth.id DEFAULT [];
@@ -33,13 +33,30 @@ DEFINE SCOPE account SESSION 15m
 	);
 
 # Instance table
+DEFINE PARAM $INSTANCE_TYPE VALUE ["trial", "dev", "uat", "prod"];
+DEFINE PARAM $DB_URL VALUE "localhost:8000"; # TODO: handle database URLs dynamically
 DEFINE TABLE instance SCHEMAFULL;
 
-DEFINE FIELD name ON instance TYPE string;
+DEFINE FIELD name ON instance TYPE string ASSERT string::len($value) >= 8;
 DEFINE FIELD account ON instance TYPE record(account);
+DEFINE FIELD db_url ON instance TYPE option<string> ASSERT string::is::url($value) VALUE type::string($DB_URL) PERMISSIONS NONE;
+DEFINE FIELD instance_type ON instance TYPE string ASSERT $value INSIDE $INSTANCE_TYPE DEFAULT "trial" PERMISSIONS NONE;;
+DEFINE FIELD namespace ON instance TYPE option<string> VALUE function() {
+	let query = new surrealdb.Query("SELECT VALUE name FROM $id", { id: this.account });
+	return (await surrealdb.query(query))[0];
+} PERMISSIONS NONE;
+DEFINE FIELD database ON instance TYPE option<string> VALUE function() {
+  	let query = new surrealdb.Query("SELECT VALUE name FROM $id", { id: this.account });
+	let account_name = (await surrealdb.query(query))[0];
+	return account_name + "_" + this.instance_type;
+} PERMISSIONS NONE;
+
 DEFINE INDEX nameIndex ON TABLE instance COLUMNS name UNIQUE;
 DEFINE EVENT relate_account ON TABLE instance WHEN $event = "CREATE" THEN {
 	UPDATE $after.account SET instances += $after.id;
+};
+DEFINE EVENT set_database ON TABLE instance WHEN $event = "CREATE" THEN {
+	
 };
 
 COMMIT TRANSACTION;

@@ -38,6 +38,7 @@ pub struct Instance {
     pub name: Option<String>,
     pub account: Option<RecordId>,
     pub id: Option<RecordId>,
+    pub database: Option<String>,
 }
 
 impl Table for Instance {

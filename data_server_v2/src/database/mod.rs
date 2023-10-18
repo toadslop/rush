@@ -2,6 +2,8 @@ use include_dir::include_dir;
 use include_dir::Dir;
 use surrealdb::engine::any::connect;
 use surrealdb::engine::any::Any;
+use surrealdb::opt::capabilities::Capabilities;
+use surrealdb::opt::Config;
 use surrealdb::Surreal;
 
 use crate::configuration::ConnectionType;
@@ -14,7 +16,10 @@ pub static DB_QUERIES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/database/
 pub async fn init_db(settings: DatabaseSettings) -> anyhow::Result<Surreal<Any>> {
     tracing::info!("Initializing the database");
     tracing::debug!("Attempting to connect to the database");
-    let db: Surreal<Any> = connect(settings.connection.get_conn_string()).await?;
+
+    let capabilities = Capabilities::all();
+    let config = Config::default().capabilities(capabilities);
+    let db: Surreal<Any> = connect((settings.connection.get_conn_string(), config)).await?;
 
     tracing::debug!("Connection success");
 
@@ -26,6 +31,8 @@ pub async fn init_db(settings: DatabaseSettings) -> anyhow::Result<Surreal<Any>>
     tracing::debug!("Accessing success");
 
     if settings.connection == ConnectionType::InMemory {
+        // Turn on scripting capabilities as these are required for Rush
+
         tracing::debug!("Initializing in-memory database. This should be used for testing only.");
         let query = DB_QUERIES
             .get_file("init-db.surql")
