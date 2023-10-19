@@ -3,6 +3,7 @@ use once_cell::sync::Lazy;
 use rush_data_server::{
     configuration::{get_configuration, Settings},
     database::init_db,
+    mailer::init_mailer,
     telemetry::init_telemetry,
 };
 use std::{env, io, net::TcpListener};
@@ -13,9 +14,11 @@ pub async fn spawn_app() -> io::Result<(String, Surreal<Any>)> {
     Lazy::force(&TRACING);
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
-    let Settings { database, .. } = get_configuration().expect("Failed to read configuration.");
+    let Settings { database, mail, .. } =
+        get_configuration().expect("Failed to read configuration.");
     let db = init_db(database).await.expect("Could not initialize db");
-    let server = rush_data_server::run(listener, db.clone());
+    let mailer = init_mailer(mail);
+    let server = rush_data_server::run(listener, db.clone(), mailer);
     spawn(server);
 
     Ok((format!("http://127.0.0.1:{}", port), db))

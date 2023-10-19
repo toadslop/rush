@@ -3,4 +3,4 @@ members = ["shared", "ui_server", "data_server_v2"]
 resolver = "2"
 
 [workspace.dependencies]
-actix-web = { version = "4.3.1", features = ["macros"] }
+actix-web = { version = "4.3.1", features = ["macros", "rustls-0_21"] }

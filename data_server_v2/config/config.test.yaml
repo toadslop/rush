@@ -1,3 +1,7 @@
 database:
   connection:
     type: "InMemory"
+mail:
+  relay: smtp://0.0.0.0:1025
+  smtp_username: user
+  smtp_password: password

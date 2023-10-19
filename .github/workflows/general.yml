@@ -11,7 +11,7 @@ defaults:
 
 jobs:
   test:
-    name: Test
+    name: Test # TODO: need to configure mailtutan for integration testing
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

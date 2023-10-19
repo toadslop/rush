@@ -3,3 +3,7 @@ database:
     type: "Local"
     host: "127.0.0.1"
     port: 8000
+mail:
+  relay: smtp://0.0.0.0:1025
+  smtp_username: user
+  smtp_password: password

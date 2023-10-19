@@ -1,6 +1,7 @@
 use rush_data_server::{
-    configuration::{get_configuration, ApplicationSettings, Settings},
+    configuration::{app::ApplicationSettings, get_configuration, Settings},
     database::init_db,
+    mailer::init_mailer,
     run,
     telemetry::init_telemetry,
 };
@@ -12,13 +13,15 @@ async fn main() -> io::Result<()> {
     let Settings {
         database,
         application,
+        mail,
     } = get_configuration().expect("Failed to read configuration.");
 
     let ApplicationSettings { host, port } = application;
     let address = format!("{host}:{port}");
 
     let db = init_db(database).await.expect("Could not initialize db");
+    let mailer = init_mailer(mail);
 
     let listener = TcpListener::bind(address)?;
-    run(listener, db).await
+    run(listener, db, mailer).await
 }

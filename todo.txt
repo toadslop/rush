@@ -1,3 +1,5 @@
 TODO
 [x] Make instance selectable from the account direction
 [x] Make creating the instance associate it with the account
+[ ] Handle email confirmation flow
+[ ] Set up authentication middleware backed by surrealdb

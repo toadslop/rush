@@ -6,8 +6,8 @@ use surrealdb::opt::capabilities::Capabilities;
 use surrealdb::opt::Config;
 use surrealdb::Surreal;
 
-use crate::configuration::ConnectionType;
-use crate::configuration::DatabaseSettings;
+use crate::configuration::db::ConnectionType;
+use crate::configuration::db::DatabaseSettings;
 
 // pub static DB: Lazy<Surreal<Any>> = Lazy::new(Surreal::init); // TODO: need to get rid of singleton and implement a connection pool
 pub static DB_QUERIES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/database/resources");
