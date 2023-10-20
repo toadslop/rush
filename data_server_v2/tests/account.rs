@@ -13,7 +13,7 @@ mod util;
 
 #[actix_web::test]
 async fn create_account_returns_200_for_valid_input() {
-    let (address, db) = spawn_app().await.expect("Failed to spawn app.");
+    let (address, db, ..) = spawn_app().await.expect("Failed to spawn app.");
     let client = reqwest::Client::new();
 
     let fake_account: DummyAccountDto = Faker.fake();
@@ -99,4 +99,40 @@ async fn create_account_returns_400_for_invalid_input() {
             description
         );
     }
+}
+
+#[actix_web::test]
+async fn create_account_sends_confirmation_email() {
+    let (address, .., mail_relay) = spawn_app().await.expect("Failed to spawn app.");
+    let client = reqwest::Client::new();
+
+    let fake_account: DummyAccountDto = Faker.fake();
+
+    let response: Account = client
+        .post(format!("{address}/account"))
+        .header("Content-Type", "application/json")
+        .json::<CreateAccountDto>(&*fake_account)
+        .send()
+        .await
+        .expect("Failed to execute request.")
+        .json()
+        .await
+        .expect("Failed to deserialize account from response.");
+
+    let account_email = response
+        .email
+        .expect("The response should have included an email");
+
+    let messages = mail_relay.get_messages().await;
+
+    let message = messages
+        .get(0)
+        .expect("There should have been a first email message");
+
+    let email = message
+        .recipients
+        .get(0)
+        .expect("There should have been a recipient but there wasn't");
+
+    assert_eq!(&account_email.0, email)
 }

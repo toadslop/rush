@@ -15,6 +15,14 @@ pub struct Settings {
     pub mail: MailSettings,
 }
 
+const APP_ENV_KEY: &str = "ENVIRONMENT";
+const APP_ENV_PREFIX: &str = "RUSH";
+const APP_ENV_PREFIX_SEP: &str = "__";
+const SEP: &str = "_";
+pub fn get_app_env_key() -> String {
+    format!("{APP_ENV_PREFIX}{APP_ENV_PREFIX_SEP}APPLICATION_{APP_ENV_KEY}")
+}
+
 #[tracing::instrument(name = "Loading configuration")]
 pub fn get_configuration() -> Result<Settings, ConfigError> {
     tracing::debug!("Loading configuration");
@@ -26,10 +34,12 @@ pub fn get_configuration() -> Result<Settings, ConfigError> {
     let configuration_directory = base_path.join("config");
     tracing::trace!("Config directory path is: {:?}", configuration_directory);
 
-    let environment: Environment = std::env::var("APP_ENVIRONMENT")
+    let app_env_key = get_app_env_key();
+
+    let environment: Environment = std::env::var(app_env_key.clone())
         .unwrap_or_else(|_| "dev".into())
         .try_into()
-        .map_err(|e| tracing::error!("Failed to load env var APP_ENVIRONEMTN: {e}"))
+        .map_err(|e| tracing::error!("Failed to load env var {}: {e}", &app_env_key))
         .unwrap();
     tracing::trace!("App environment is: {:?}", environment);
 
@@ -43,6 +53,12 @@ pub fn get_configuration() -> Result<Settings, ConfigError> {
         .add_source(config::File::from(
             configuration_directory.join(environment_filename),
         ))
+        .add_source(
+            config::Environment::with_prefix(APP_ENV_PREFIX)
+                .prefix(APP_ENV_PREFIX)
+                .prefix_separator(APP_ENV_PREFIX_SEP)
+                .separator(SEP),
+        )
         .build()?;
     tracing::trace!("Settings loaded {:?}", settings);
 
@@ -51,7 +67,8 @@ pub fn get_configuration() -> Result<Settings, ConfigError> {
     settings
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum Environment {
     Dev,
     Test,

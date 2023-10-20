@@ -2,7 +2,7 @@ use actix_web::{
     web::{self, Data},
     App, HttpServer,
 };
-use lettre::SmtpTransport;
+use lettre::{AsyncSmtpTransport, Tokio1Executor};
 use middleware::virtual_hosting::VirtualHostProcessor;
 use services::{health_check, instance::instance_service, root::root_service};
 use std::{io, net::TcpListener};
@@ -19,7 +19,11 @@ mod services;
 pub mod telemetry;
 pub mod util;
 
-pub async fn run(listener: TcpListener, db: Surreal<Any>, mailer: SmtpTransport) -> io::Result<()> {
+pub async fn run(
+    listener: TcpListener,
+    db: Surreal<Any>,
+    mailer: AsyncSmtpTransport<Tokio1Executor>,
+) -> io::Result<()> {
     // TODO: create instance guard to handle directing to instance handling or main admin instance
     // TODO: set up proper tracing logs for existing endpoints and middleware
     HttpServer::new(move || {

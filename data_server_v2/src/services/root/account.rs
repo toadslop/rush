@@ -6,21 +6,39 @@ use crate::model::Table;
 use crate::services::util::HttpError;
 use actix_web::web;
 use actix_web::HttpResponse;
+use lettre::message::header::ContentType;
+use lettre::AsyncSmtpTransport;
+use lettre::AsyncTransport;
+use lettre::Message;
+use lettre::Tokio1Executor;
+
 use surrealdb::{engine::any::Any, Surreal};
 
-#[tracing::instrument]
+#[tracing::instrument(skip(mailer, db))]
 pub async fn create_account(
     instance: web::Json<CreateAccountDto>,
     db: web::Data<Surreal<Any>>,
+    mailer: web::Data<AsyncSmtpTransport<Tokio1Executor>>,
 ) -> HttpResponse {
     tracing::trace!("Reached create_account route handler");
-    let resp = match create_account_db(instance, db).await {
-        Ok(instance) => HttpResponse::Ok().json(instance),
+    let (resp, account) = match create_account_db(instance, db).await {
+        Ok(account) => (HttpResponse::Ok().json(&account), account),
         Err(e) => {
             let e: HttpError = e.into();
-            e.inter_inner()
+            (e.inter_inner(), None)
         }
     };
+
+    if let Some(account) = account {
+        match send_confirmation_email(&account, mailer).await {
+            Ok(_) => tracing::trace!("Confirmation email send success"),
+            Err(e) => {
+                tracing::error!("Confirmation email send failed with error: {e}")
+                // TODO: remove accounts when email failed to send?
+            }
+        }
+    }
+
     tracing::trace!("Handler exited");
     resp
 }
@@ -44,4 +62,40 @@ async fn create_account_db(
 
     tracing::info!("Success");
     Ok(account)
+}
+
+#[tracing::instrument(skip(mailer))]
+async fn send_confirmation_email(
+    account: &Account,
+    mailer: web::Data<lettre::AsyncSmtpTransport<Tokio1Executor>>,
+) -> Result<(), anyhow::Error> {
+    tracing::info!("Attempting to send confirmation email");
+
+    tracing::debug!("Building the email");
+    // TODO: make message settings subject to configuration
+    let message = Message::builder()
+        .from("test <test@rush.io>".parse()?)
+        .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
+        .to(format!(
+            "{} <{}>",
+            account
+                .name
+                .as_ref()
+                .expect("Should have received the account name"),
+            account
+                .email
+                .as_ref()
+                .expect("Should have received the email address")
+        )
+        .parse()?)
+        .subject("Please confirm your email address")
+        .header(ContentType::TEXT_PLAIN)
+        .body::<String>("Please click the link to confirm your email address.".into())?;
+    tracing::debug!("Build success");
+
+    tracing::debug!("Sending email...");
+    mailer.send(message).await?;
+    tracing::info!("Confirmation email send success");
+
+    Ok(())
 }

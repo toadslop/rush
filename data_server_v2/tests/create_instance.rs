@@ -18,7 +18,7 @@ mod util;
 
 #[actix_web::test]
 async fn create_instance_returns_200_for_valid_input() {
-    let (address, db) = spawn_app().await.expect("Failed to spawn app.");
+    let (address, db, _) = spawn_app().await.expect("Failed to spawn app.");
     let _dummy_account: DummyAccountDto = Faker.fake();
     let dummy_account: CreateAccountDb = (*_dummy_account).clone().into();
     db.create::<Option<Account>>((Account::name(), _dummy_account.email.clone()))
@@ -83,7 +83,7 @@ async fn create_instance_returns_200_for_valid_input() {
 
 #[actix_web::test]
 async fn create_instance_a_400_when_data_is_missing() {
-    let (address, _) = spawn_app().await.expect("Failed to spawn app.");
+    let (address, _, _) = spawn_app().await.expect("Failed to spawn app.");
     let client = reqwest::Client::new();
     let test_cases = [
         (

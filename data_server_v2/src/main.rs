@@ -16,11 +16,15 @@ async fn main() -> io::Result<()> {
         mail,
     } = get_configuration().expect("Failed to read configuration.");
 
-    let ApplicationSettings { host, port } = application;
+    let ApplicationSettings {
+        host,
+        port,
+        environment,
+    } = application;
     let address = format!("{host}:{port}");
 
     let db = init_db(database).await.expect("Could not initialize db");
-    let mailer = init_mailer(mail);
+    let mailer = init_mailer(mail, environment).await;
 
     let listener = TcpListener::bind(address)?;
     run(listener, db, mailer).await
