@@ -1,5 +1,7 @@
-use crate::fakes::DummyAccountDto;
-use crate::util::spawn_app;
+use crate::{
+    root::fakes::DummyAccountDto,
+    util::{spawn_app, TestApp},
+};
 use fake::{
     faker::{
         company::en::CompanyName,
@@ -8,18 +10,18 @@ use fake::{
     Fake, Faker,
 };
 use rush_data_server::model::account::{Account, CreateAccountDto};
-mod fakes;
-mod util;
 
 #[actix_web::test]
 async fn create_account_returns_200_for_valid_input() {
-    let (address, db, ..) = spawn_app().await.expect("Failed to spawn app.");
+    let TestApp {
+        db, app_address, ..
+    } = spawn_app().await.expect("Failed to spawn app.");
     let client = reqwest::Client::new();
 
     let fake_account: DummyAccountDto = Faker.fake();
 
     let response = client
-        .post(format!("{address}/account"))
+        .post(format!("{app_address}/account"))
         .header("Content-Type", "application/json")
         .json::<CreateAccountDto>(&*fake_account)
         .send()
@@ -38,7 +40,7 @@ async fn create_account_returns_200_for_valid_input() {
 
 #[actix_web::test]
 async fn create_account_returns_400_for_invalid_input() {
-    let (address, ..) = spawn_app().await.expect("Failed to spawn app.");
+    let TestApp { app_address, .. } = spawn_app().await.expect("Failed to spawn app.");
     let client = reqwest::Client::new();
     let test_cases = [
         (
@@ -85,7 +87,7 @@ async fn create_account_returns_400_for_invalid_input() {
 
     for (body, description) in test_cases {
         let response = client
-            .post(format!("{address}/account"))
+            .post(format!("{app_address}/account"))
             .header("Content-Type", "application/json")
             .json(&body)
             .send()
@@ -103,13 +105,18 @@ async fn create_account_returns_400_for_invalid_input() {
 
 #[actix_web::test]
 async fn create_account_sends_confirmation_email() {
-    let (address, .., mail_relay) = spawn_app().await.expect("Failed to spawn app.");
+    let TestApp {
+        app_address,
+
+        smtp_client,
+        ..
+    } = spawn_app().await.expect("Failed to spawn app.");
     let client = reqwest::Client::new();
 
     let fake_account: DummyAccountDto = Faker.fake();
 
     let response: Account = client
-        .post(format!("{address}/account"))
+        .post(format!("{app_address}/account"))
         .header("Content-Type", "application/json")
         .json::<CreateAccountDto>(&*fake_account)
         .send()
@@ -123,7 +130,7 @@ async fn create_account_sends_confirmation_email() {
         .email
         .expect("The response should have included an email");
 
-    let messages = mail_relay.get_messages().await;
+    let messages = smtp_client.get_messages().await;
 
     let message = messages
         .get(0)

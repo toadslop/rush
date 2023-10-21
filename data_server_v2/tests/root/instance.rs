@@ -1,3 +1,7 @@
+use crate::{
+    root::fakes::DummyAccountDto,
+    util::{spawn_app, TestApp},
+};
 use fake::{
     faker::{
         company::{en::BsAdj, en::BsNoun},
@@ -11,16 +15,16 @@ use rush_data_server::model::{
     Table,
 };
 use surrealdb::opt::RecordId;
-mod fakes;
-use crate::{fakes::DummyAccountDto, util::spawn_app};
-
-mod util;
 
 #[actix_web::test]
 async fn create_instance_returns_200_for_valid_input() {
-    let (address, db, _) = spawn_app().await.expect("Failed to spawn app.");
+    let TestApp {
+        db, app_address, ..
+    } = spawn_app().await.expect("Failed to spawn app.");
+
     let _dummy_account: DummyAccountDto = Faker.fake();
     let dummy_account: CreateAccountDb = (*_dummy_account).clone().into();
+
     db.create::<Option<Account>>((Account::name(), _dummy_account.email.clone()))
         .content(&dummy_account)
         .await
@@ -36,7 +40,7 @@ async fn create_instance_returns_200_for_valid_input() {
     };
 
     let response = client
-        .post(format!("{address}/instance"))
+        .post(format!("{app_address}/instance"))
         .header("Content-Type", "application/json")
         .json(&body)
         .send()
@@ -83,7 +87,7 @@ async fn create_instance_returns_200_for_valid_input() {
 
 #[actix_web::test]
 async fn create_instance_a_400_when_data_is_missing() {
-    let (address, _, _) = spawn_app().await.expect("Failed to spawn app.");
+    let TestApp { app_address, .. } = spawn_app().await.expect("Failed to spawn app.");
     let client = reqwest::Client::new();
     let test_cases = [
         (
@@ -104,7 +108,7 @@ async fn create_instance_a_400_when_data_is_missing() {
 
     for (invalid_body, error_message) in test_cases {
         let response = client
-            .post(&format!("{}/instance", &address))
+            .post(&format!("{}/instance", &app_address))
             .header("Content-Type", "application/json")
             .json::<CreateInstanceDto>(&invalid_body)
             .send()

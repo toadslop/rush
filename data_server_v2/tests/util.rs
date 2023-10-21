@@ -1,7 +1,7 @@
 use actix_web::rt::spawn;
 use get_port::Ops;
-use lettre::transport::smtp;
 use once_cell::sync::Lazy;
+use rand::Rng;
 use reqwest::Client;
 use rush_data_server::{
     configuration::{get_app_env_key, get_configuration, mail::MailSettings, Settings},
@@ -12,10 +12,21 @@ use rush_data_server::{
 use secrecy::ExposeSecret;
 use serde::Deserialize;
 use std::process::{Child, Command};
-use std::{env, io, net::TcpListener};
+use std::{
+    env,
+    io::{self, BufRead, BufReader},
+    net::TcpListener,
+    process::Stdio,
+};
 use surrealdb::{engine::any::Any, Surreal};
 
-pub async fn spawn_app() -> io::Result<(String, Surreal<Any>, TestSmtpServerClient)> {
+pub struct TestApp {
+    pub app_address: String,
+    pub db: Surreal<Any>,
+    pub smtp_client: TestSmtpServerClient,
+}
+
+pub async fn spawn_app() -> io::Result<TestApp> {
     env::set_var(get_app_env_key(), "test");
     Lazy::force(&TRACING);
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
@@ -35,65 +46,62 @@ pub async fn spawn_app() -> io::Result<(String, Surreal<Any>, TestSmtpServerClie
     let server = rush_data_server::run(listener, db.clone(), mailer);
     spawn(server);
 
-    Ok((
-        format!("http://127.0.0.1:{}", port),
+    Ok(TestApp {
+        app_address: format!("http://127.0.0.1:{}", port),
         db,
-        TestSmtpServerClient::new(mail, smtp_server_handle, http_port),
-    ))
+        smtp_client: TestSmtpServerClient::new(mail, smtp_server_handle, http_port),
+    })
 }
 
-pub fn spawn_smtp_server(settings: &MailSettings) -> (Child, u16, u16) {
-    let smtp_host = if settings.smtp_host == "localhost" {
+fn local_host_to_ip(host: &str) -> &str {
+    if host == "localhost" {
         "127.0.0.1"
     } else {
-        &settings.smtp_host
-    };
-    let mut smtp_port: u16 = get_port::tcp::TcpPort::any(smtp_host)
-        .expect("Failed to get a random TCP port for the test mail server");
-    println!("smtp port {smtp_port}");
-
-    while !get_port::tcp::TcpPort::is_port_available(smtp_host, smtp_port) {
-        smtp_port += 1;
+        host
     }
+}
 
-    let http_host = settings
-        .http_host
-        .as_ref()
-        .map(|host| {
-            if host == "localhost" {
-                "127.0.0.1"
-            } else {
-                host
-            }
-        })
-        .unwrap_or("127.0.0.1");
-
-    let mut http_port: u16 = get_port::tcp::TcpPort::any(http_host)
-        .expect("Failed to get a random TCP port for the test mail server");
-
-    while !get_port::tcp::TcpPort::is_port_available(http_host, http_port) || http_port == smtp_port
-    {
-        http_port += 1;
+fn get_free_ports(host: &str) -> (u16, u16) {
+    let mut rng = rand::thread_rng();
+    let mut port1: u16 = rng.gen();
+    while !get_port::tcp::TcpPort::is_port_available(host, port1) {
+        port1 += 1;
     }
+    let mut port2: u16 = port1 + 1;
+    while !get_port::tcp::TcpPort::is_port_available(host, port2) {
+        port2 += 1;
+    }
+    (port1, port2)
+}
 
-    println!("http port: {http_port}");
-
-    let smtp_server_handle = Command::new("mailtutan")
+fn spawn_mail_server(host: &str, smtp_port: u16, http_port: u16) -> Child {
+    Command::new("mailtutan")
         .args([
             "--ip",
-            "127.0.0.1",
+            host,
             "--smtp-port",
             &smtp_port.to_string(),
             "--http-port",
             &http_port.to_string(),
         ])
+        .stdout(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to spawn test smtp server: {e}"))
-        .unwrap();
-    smtp_server_handle.stdout.as_ref().map(|f| {
-        println!("{:?}", f);
-        Some(f)
-    });
+        .unwrap()
+}
+
+pub fn spawn_smtp_server(settings: &MailSettings) -> (Child, u16, u16) {
+    let host = local_host_to_ip(&settings.smtp_host);
+    let (smtp_port, http_port) = get_free_ports(host);
+
+    let mut smtp_server_handle = spawn_mail_server(host, smtp_port, http_port);
+
+    let reader = BufReader::new(smtp_server_handle.stdout.take().unwrap());
+    let mut lines = reader.lines();
+
+    // Should get two lines of output indicating complete startup.
+    let _ = lines.next().unwrap();
+    let _ = lines.next().unwrap();
 
     (smtp_server_handle, smtp_port, http_port)
 }
