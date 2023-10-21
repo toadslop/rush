@@ -112,6 +112,7 @@ static TRACING: Lazy<io::Result<()>> = Lazy::new(|| {
     Ok(())
 });
 
+#[derive(Debug)]
 pub struct TestSmtpServerClient {
     settings: MailSettings,
     client: reqwest::Client,

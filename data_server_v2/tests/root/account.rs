@@ -14,8 +14,12 @@ use rush_data_server::model::account::{Account, CreateAccountDto};
 #[actix_web::test]
 async fn create_account_returns_200_for_valid_input() {
     let TestApp {
-        db, app_address, ..
+        db,
+        app_address,
+        smtp_client,
+        ..
     } = spawn_app().await.expect("Failed to spawn app.");
+    let _ = smtp_client; // prevent smtp client from being dropped.
     let client = reqwest::Client::new();
 
     let fake_account: DummyAccountDto = Faker.fake();
