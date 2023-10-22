@@ -1,7 +1,6 @@
-use std::ops::{Deref, DerefMut};
-
 use fake::{
     faker::{
+        chrono::en::DateTime,
         company::en::CompanyName,
         internet::en::{Password, SafeEmail},
     },
@@ -13,6 +12,7 @@ use rush_data_server::model::{
     email_address::EmailAddress,
     Table,
 };
+use std::ops::{Deref, DerefMut};
 use surrealdb::opt::RecordId;
 
 #[derive(Debug, Clone)]
@@ -47,11 +47,15 @@ impl Dummy<Faker> for DummyAccount {
     fn dummy_with_rng<R: Rng + ?Sized>(_: &Faker, rng: &mut R) -> Self {
         let email = SafeEmail().fake_with_rng::<String, R>(rng);
         Self(Account {
-            id: Some(RecordId::from((Account::name(), email.as_ref()))),
-            email: Some(EmailAddress(email)),
+            id: Some(RecordId::from((Account::name(), email.clone().as_ref()))),
+            email: Some(EmailAddress(email.clone())),
             name: Some(CompanyName().fake_with_rng(rng)),
             confirmed: Some(false.fake_with_rng(rng)),
             instances: Some(vec![]),
+            created_by: Some(RecordId::from((Account::name(), email.clone().as_ref()))),
+            updated_by: Some(RecordId::from((Account::name(), email.as_ref()))),
+            created_at: Some(DateTime().fake_with_rng(rng)),
+            updated_at: Some(DateTime().fake_with_rng(rng)),
         })
     }
 }

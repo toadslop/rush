@@ -17,7 +17,23 @@ DEFINE FIELD password ON account TYPE string PERMISSIONS FOR select, create, upd
 DEFINE FIELD confirmed ON account TYPE bool PERMISSIONS NONE DEFAULT false;
 DEFINE FIELD instances ON account TYPE array PERMISSIONS FOR select, create, update WHERE id = $auth.id DEFAULT [];
 DEFINE FIELD instances.* ON TABLE account TYPE record(instance);
+DEFINE FIELD created_at ON TABLE account TYPE datetime PERMISSIONS NONE DEFAULT time::now();
+DEFINE FIELD created_by ON TABLE account TYPE option<record(account)> VALUE ($auth.id OR account:system) PERMISSIONS NONE;
+DEFINE FIELD updated_at ON TABLE account TYPE datetime PERMISSIONS NONE DEFAULT time::now();
+DEFINE FIELD updated_by ON TABLE account TYPE option<record(account)> PERMISSIONS NONE VALUE $auth.id OR account:system;
 DEFINE INDEX email ON account FIELDS email UNIQUE;
+DEFINE EVENT on_update ON TABLE account WHEN $event = "CREATE" THEN {
+	UPDATE $after.id SET updated_at = time::now(), updated_by = $auth.id;
+};
+
+CREATE account:system CONTENT {
+	email: "system@rush.io", # todo: system email account needs to be configurable
+	password: "testtest",
+	name: "system",
+	confirmed: true,
+	instances: [],
+};
+
 
 # account scope
 DEFINE SCOPE account SESSION 15m
@@ -50,13 +66,15 @@ DEFINE FIELD database ON instance TYPE option<string> VALUE function() {
 	let account_name = (await surrealdb.query(query))[0];
 	return account_name + "_" + this.instance_type;
 } PERMISSIONS NONE;
+DEFINE FIELD created_at ON TABLE instance TYPE datetime PERMISSIONS NONE DEFAULT time::now();
+DEFINE FIELD created_by ON TABLE instance TYPE option<record(account)> VALUE ($auth.id OR account:system) PERMISSIONS NONE;
+DEFINE FIELD updated_at ON TABLE instance TYPE datetime PERMISSIONS NONE DEFAULT time::now();
+DEFINE FIELD updated_by ON TABLE instance TYPE option<record(account)> PERMISSIONS NONE VALUE $auth.id OR account:system;
 
 DEFINE INDEX nameIndex ON TABLE instance COLUMNS name UNIQUE;
 DEFINE EVENT relate_account ON TABLE instance WHEN $event = "CREATE" THEN {
 	UPDATE $after.account SET instances += $after.id;
 };
-DEFINE EVENT set_database ON TABLE instance WHEN $event = "CREATE" THEN {
-	
-};
+
 
 COMMIT TRANSACTION;

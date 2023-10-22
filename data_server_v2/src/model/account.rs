@@ -1,4 +1,5 @@
 use super::{email_address::EmailAddress, CreateTable, Table};
+use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use surrealdb::opt::RecordId;
 
@@ -44,6 +45,10 @@ pub struct Account {
     pub name: Option<String>,
     pub confirmed: Option<bool>,
     pub instances: Option<Vec<RecordId>>,
+    pub created_by: Option<RecordId>,
+    pub updated_by: Option<RecordId>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 impl Table for Account {

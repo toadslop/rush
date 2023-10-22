@@ -5,6 +5,7 @@ use rand::Rng;
 use reqwest::Client;
 use rush_data_server::{
     configuration::{get_app_env_key, get_configuration, mail::MailSettings},
+    model::{account::CreateAccountDto, instance::CreateInstanceDto},
     startup::Application,
     telemetry::init_telemetry,
 };
@@ -22,6 +23,28 @@ pub struct TestApp {
     pub app_address: String,
     pub db: Surreal<Any>,
     pub smtp_client: Option<TestSmtpServerClient>,
+}
+
+impl TestApp {
+    pub async fn post_account(&self, body: &CreateAccountDto) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(&format!("{}/account", &self.app_address))
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .json(body)
+            .send()
+            .await
+            .expect("failed to execute request")
+    }
+
+    pub async fn post_instance(&self, body: &CreateInstanceDto) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(&format!("{}/instance", &self.app_address))
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .json(body)
+            .send()
+            .await
+            .expect("failed to execute request")
+    }
 }
 
 pub async fn spawn_app(test_settings: TestSettings) -> io::Result<TestApp> {

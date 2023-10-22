@@ -1,6 +1,6 @@
 use crate::{
     root::fakes::DummyAccountDto,
-    util::{spawn_app, TestApp, TestSettings},
+    util::{spawn_app, TestSettings},
 };
 use fake::{
     faker::{
@@ -13,43 +13,29 @@ use rush_data_server::model::account::{Account, CreateAccountDto};
 
 #[actix_web::test]
 async fn create_account_returns_200_for_valid_input() {
-    let TestApp {
-        db,
-        app_address,
-        smtp_client,
-        ..
-    } = spawn_app(TestSettings { spawn_smtp: true })
+    let test_app = spawn_app(TestSettings { spawn_smtp: true })
         .await
         .expect("Failed to spawn app.");
-    let _ = smtp_client; // prevent smtp client from being dropped.
-    let client = reqwest::Client::new();
 
-    let fake_account: DummyAccountDto = Faker.fake();
+    let body: DummyAccountDto = Faker.fake();
+    let response = test_app.post_account(&body).await;
 
-    let response = client
-        .post(format!("{app_address}/account"))
-        .header("Content-Type", "application/json")
-        .json::<CreateAccountDto>(&*fake_account)
-        .send()
-        .await
-        .expect("Failed to execute request.");
+    test_app.db.use_ns("root").use_db("root").await.unwrap();
 
-    db.use_ns("root").use_db("root").await.unwrap();
-
-    let result: Option<Account> = db.select(("account", &fake_account.email)).await.unwrap();
+    let result: Option<Account> = test_app.db.select(("account", &body.email)).await.unwrap();
 
     let account = result.unwrap();
 
     assert_eq!(200, response.status().as_u16());
-    assert_eq!(&fake_account.email, account.email.clone().unwrap().as_ref());
+    assert_eq!(&body.email, account.email.clone().unwrap().as_ref());
 }
 
 #[actix_web::test]
 async fn create_account_returns_400_for_invalid_input() {
-    let TestApp { app_address, .. } = spawn_app(TestSettings { spawn_smtp: true })
+    let test_app = spawn_app(TestSettings { spawn_smtp: true })
         .await
         .expect("Failed to spawn app.");
-    let client = reqwest::Client::new();
+
     let test_cases = [
         (
             CreateAccountDto {
@@ -94,13 +80,7 @@ async fn create_account_returns_400_for_invalid_input() {
     ];
 
     for (body, description) in test_cases {
-        let response = client
-            .post(format!("{app_address}/account"))
-            .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .await
-            .expect("Failed to execute request.");
+        let response = test_app.post_account(&body).await;
 
         assert_eq!(
             400,
@@ -113,25 +93,15 @@ async fn create_account_returns_400_for_invalid_input() {
 
 #[actix_web::test]
 async fn create_account_sends_confirmation_email() {
-    let TestApp {
-        app_address,
-
-        smtp_client,
-        ..
-    } = spawn_app(TestSettings { spawn_smtp: true })
+    let test_app = spawn_app(TestSettings { spawn_smtp: true })
         .await
         .expect("Failed to spawn app.");
-    let client = reqwest::Client::new();
 
-    let fake_account: DummyAccountDto = Faker.fake();
+    let body: DummyAccountDto = Faker.fake();
 
-    let response: Account = client
-        .post(format!("{app_address}/account"))
-        .header("Content-Type", "application/json")
-        .json::<CreateAccountDto>(&*fake_account)
-        .send()
+    let response: Account = test_app
+        .post_account(&body)
         .await
-        .expect("Failed to execute request.")
         .json()
         .await
         .expect("Failed to deserialize account from response.");
@@ -140,7 +110,8 @@ async fn create_account_sends_confirmation_email() {
         .email
         .expect("The response should have included an email");
 
-    let messages = smtp_client
+    let messages = test_app
+        .smtp_client
         .expect("This test requires an smtp client. Set 'spawn_smtp' to true in TestSettings")
         .get_messages()
         .await;
