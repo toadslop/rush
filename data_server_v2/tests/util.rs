@@ -23,10 +23,11 @@ use surrealdb::{engine::any::Any, Surreal};
 pub struct TestApp {
     pub app_address: String,
     pub db: Surreal<Any>,
-    pub smtp_client: TestSmtpServerClient,
+    pub smtp_client: Option<TestSmtpServerClient>,
 }
 
-pub async fn spawn_app() -> io::Result<TestApp> {
+pub async fn spawn_app(test_settings: TestSettings) -> io::Result<TestApp> {
+    let TestSettings { spawn_smtp } = test_settings;
     env::set_var(get_app_env_key(), "test");
     Lazy::force(&TRACING);
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
@@ -39,17 +40,28 @@ pub async fn spawn_app() -> io::Result<TestApp> {
         mut mail,
         application,
     } = get_configuration().expect("Failed to read configuration.");
-    let (smtp_server_handle, smtp_port, http_port) = spawn_smtp_server(&mail);
-    mail.smtp_port = Some(smtp_port);
+
+    let smtp_client = if spawn_smtp {
+        let (smtp_server_handle, smtp_port, http_port) = spawn_smtp_server(&mail);
+        mail.smtp_port = Some(smtp_port);
+        Some(TestSmtpServerClient::new(
+            mail.clone(),
+            smtp_server_handle,
+            http_port,
+        ))
+    } else {
+        None
+    };
+
     let db = init_db(database).await.expect("Could not initialize db");
-    let mailer = init_mailer(mail.clone(), application.environment).await;
+    let mailer = init_mailer(mail, application.environment).await;
     let server = rush_data_server::run(listener, db.clone(), mailer);
     spawn(server);
 
     Ok(TestApp {
         app_address: format!("http://127.0.0.1:{}", port),
         db,
-        smtp_client: TestSmtpServerClient::new(mail, smtp_server_handle, http_port),
+        smtp_client,
     })
 }
 
@@ -183,4 +195,8 @@ pub struct MailtutanJsonMail {
     pub created_at: String,
     pub attachments: Vec<String>,
     pub formats: Vec<String>,
+}
+
+pub struct TestSettings {
+    pub spawn_smtp: bool,
 }

@@ -74,18 +74,17 @@ async fn send_confirmation_email(
     tracing::debug!("Building the email");
     // TODO: make message settings subject to configuration
     let message = Message::builder()
-        .from("test <test@rush.io>".parse()?)
-        .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
+        .from("no-reply <no-reply@rush.io>".parse()?) // TODO: make this configurable
         .to(format!(
             "{} <{}>",
             account
                 .name
                 .as_ref()
-                .expect("Should have received the account name"),
+                .expect("Should have received the account name"), // TODO: properly handle this rather than using expect
             account
                 .email
                 .as_ref()
-                .expect("Should have received the email address")
+                .expect("Should have received the email address") // TODO: properly handle this rather than using expect
         )
         .parse()?)
         .subject("Please confirm your email address")
@@ -94,7 +93,7 @@ async fn send_confirmation_email(
     tracing::debug!("Build success");
 
     tracing::debug!("Sending email...");
-    mailer.send(message).await?;
+    mailer.send(message).await?; // TODO: consider what we should do if sending the confirmation email fails
     tracing::info!("Confirmation email send success");
 
     Ok(())

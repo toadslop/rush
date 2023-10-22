@@ -1,8 +1,10 @@
-use crate::util::{spawn_app, TestApp};
+use crate::util::{spawn_app, TestApp, TestSettings};
 
 #[actix_web::test]
 async fn health_check_works() {
-    let TestApp { app_address, .. } = spawn_app().await.expect("Failed to spawn app.");
+    let TestApp { app_address, .. } = spawn_app(TestSettings { spawn_smtp: false })
+        .await
+        .expect("Failed to spawn app.");
 
     let client = reqwest::Client::new();
 

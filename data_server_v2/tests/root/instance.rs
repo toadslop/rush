@@ -1,6 +1,6 @@
 use crate::{
     root::fakes::DummyAccountDto,
-    util::{spawn_app, TestApp},
+    util::{spawn_app, TestApp, TestSettings},
 };
 use fake::{
     faker::{
@@ -20,7 +20,9 @@ use surrealdb::opt::RecordId;
 async fn create_instance_returns_200_for_valid_input() {
     let TestApp {
         db, app_address, ..
-    } = spawn_app().await.expect("Failed to spawn app.");
+    } = spawn_app(TestSettings { spawn_smtp: false })
+        .await
+        .expect("Failed to spawn app.");
 
     let _dummy_account: DummyAccountDto = Faker.fake();
     let dummy_account: CreateAccountDb = (*_dummy_account).clone().into();
@@ -87,7 +89,9 @@ async fn create_instance_returns_200_for_valid_input() {
 
 #[actix_web::test]
 async fn create_instance_a_400_when_data_is_missing() {
-    let TestApp { app_address, .. } = spawn_app().await.expect("Failed to spawn app.");
+    let TestApp { app_address, .. } = spawn_app(TestSettings { spawn_smtp: false })
+        .await
+        .expect("Failed to spawn app.");
     let client = reqwest::Client::new();
     let test_cases = [
         (

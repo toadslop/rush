@@ -1,6 +1,6 @@
 use crate::{
     root::fakes::DummyAccountDto,
-    util::{spawn_app, TestApp},
+    util::{spawn_app, TestApp, TestSettings},
 };
 use fake::{
     faker::{
@@ -18,7 +18,9 @@ async fn create_account_returns_200_for_valid_input() {
         app_address,
         smtp_client,
         ..
-    } = spawn_app().await.expect("Failed to spawn app.");
+    } = spawn_app(TestSettings { spawn_smtp: true })
+        .await
+        .expect("Failed to spawn app.");
     let _ = smtp_client; // prevent smtp client from being dropped.
     let client = reqwest::Client::new();
 
@@ -44,7 +46,9 @@ async fn create_account_returns_200_for_valid_input() {
 
 #[actix_web::test]
 async fn create_account_returns_400_for_invalid_input() {
-    let TestApp { app_address, .. } = spawn_app().await.expect("Failed to spawn app.");
+    let TestApp { app_address, .. } = spawn_app(TestSettings { spawn_smtp: true })
+        .await
+        .expect("Failed to spawn app.");
     let client = reqwest::Client::new();
     let test_cases = [
         (
@@ -114,7 +118,9 @@ async fn create_account_sends_confirmation_email() {
 
         smtp_client,
         ..
-    } = spawn_app().await.expect("Failed to spawn app.");
+    } = spawn_app(TestSettings { spawn_smtp: true })
+        .await
+        .expect("Failed to spawn app.");
     let client = reqwest::Client::new();
 
     let fake_account: DummyAccountDto = Faker.fake();
@@ -134,7 +140,10 @@ async fn create_account_sends_confirmation_email() {
         .email
         .expect("The response should have included an email");
 
-    let messages = smtp_client.get_messages().await;
+    let messages = smtp_client
+        .expect("This test requires an smtp client. Set 'spawn_smtp' to true in TestSettings")
+        .get_messages()
+        .await;
 
     let message = messages
         .get(0)

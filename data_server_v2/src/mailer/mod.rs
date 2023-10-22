@@ -3,6 +3,10 @@ use secrecy::ExposeSecret;
 
 use crate::configuration::{mail::MailSettings, Environment};
 
+// TODO: need to handle smtps
+
+const DEFAULT_SMTP_PORT: u16 = 25;
+
 pub async fn init_mailer(
     settings: MailSettings,
     app_environment: Environment,
@@ -10,9 +14,9 @@ pub async fn init_mailer(
     let connection = format!(
         "smtp://{}:{}",
         settings.smtp_host,
-        settings.smtp_port.expect("An smpt_port is required")
+        settings.smtp_port.unwrap_or(DEFAULT_SMTP_PORT)
     );
-    println!("connection: {connection}");
+
     let mailer = if app_environment == Environment::Prod {
         let credentials = Credentials::new(
             settings
@@ -29,7 +33,6 @@ pub async fn init_mailer(
             .credentials(credentials)
             .build()
     } else {
-        println!("is test env");
         let mut builder = AsyncSmtpTransport::<Tokio1Executor>::from_url(&connection)
             .expect("Failed to build smtp host");
 
@@ -43,10 +46,16 @@ pub async fn init_mailer(
         builder.build()
     };
 
-    mailer
-        .test_connection()
-        .await
-        .expect("Failed to connect to SMTP server");
+    // Some tests do not need an smtp server, so we don't test the connection
+    // We test if the environment is explicitly not set to test to handle some
+    // possible edge cases
+    #[cfg(test)]
+    if app_environment != Environment::Test {
+        mailer
+            .test_connection()
+            .await
+            .expect("Failed to connect to SMTP server");
+    }
 
     mailer
 }
