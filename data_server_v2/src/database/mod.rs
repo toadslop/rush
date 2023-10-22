@@ -17,18 +17,7 @@ pub async fn init_db(settings: DatabaseSettings) -> anyhow::Result<Surreal<Any>>
     tracing::info!("Initializing the database");
     tracing::debug!("Attempting to connect to the database");
 
-    let capabilities = Capabilities::all();
-    let config = Config::default().capabilities(capabilities);
-    let db: Surreal<Any> = connect((settings.connection.get_conn_string(), config)).await?;
-
-    tracing::debug!("Connection success");
-
-    tracing::debug!("Accessing to root ns and root db");
-    db.use_ns("root")
-        .use_db("root")
-        .await
-        .expect("Could not use the root namespace or root db");
-    tracing::debug!("Accessing success");
+    let db = connect_to_root_db(&settings).await?;
 
     if settings.connection == ConnectionType::InMemory {
         // Turn on scripting capabilities as these are required for Rush
@@ -50,5 +39,26 @@ pub async fn init_db(settings: DatabaseSettings) -> anyhow::Result<Surreal<Any>>
     };
 
     tracing::info!("Initialation success");
+    Ok(db)
+}
+
+#[tracing::instrument(name = "Connect to database")]
+pub async fn connect_to_root_db(settings: &DatabaseSettings) -> anyhow::Result<Surreal<Any>> {
+    tracing::debug!("Attempting to connect to the database");
+    let capabilities = Capabilities::all();
+    let config = Config::default().capabilities(capabilities);
+    println!("{}", settings.connection.get_conn_string());
+    let db: Surreal<Any> = connect((settings.connection.get_conn_string(), config)).await?;
+    tracing::debug!("Connection success");
+
+    tracing::debug!("Accessing to root ns and root db");
+
+    db.use_ns("root")
+        .use_db("root")
+        .await
+        .expect("Could not use the root namespace or root db");
+
+    tracing::debug!("Accessing success");
+
     Ok(db)
 }

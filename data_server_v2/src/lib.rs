@@ -1,4 +1,5 @@
 use actix_web::{
+    dev::Server,
     web::{self, Data},
     App, HttpServer,
 };
@@ -16,6 +17,7 @@ pub mod mailer;
 mod middleware;
 pub mod model;
 mod services;
+pub mod startup;
 pub mod telemetry;
 pub mod util;
 
@@ -23,10 +25,10 @@ pub async fn run(
     listener: TcpListener,
     db: Surreal<Any>,
     mailer: AsyncSmtpTransport<Tokio1Executor>,
-) -> io::Result<()> {
+) -> io::Result<Server> {
     // TODO: create instance guard to handle directing to instance handling or main admin instance
     // TODO: set up proper tracing logs for existing endpoints and middleware
-    HttpServer::new(move || {
+    Ok(HttpServer::new(move || {
         App::new()
             .wrap(VirtualHostProcessor)
             .wrap(TracingLogger::default())
@@ -37,6 +39,5 @@ pub async fn run(
             .app_data(Data::new(mailer.clone()))
     })
     .listen(listener)?
-    .run()
-    .await
+    .run())
 }

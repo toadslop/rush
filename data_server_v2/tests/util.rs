@@ -4,9 +4,8 @@ use once_cell::sync::Lazy;
 use rand::Rng;
 use reqwest::Client;
 use rush_data_server::{
-    configuration::{get_app_env_key, get_configuration, mail::MailSettings, Settings},
-    database::init_db,
-    mailer::init_mailer,
+    configuration::{get_app_env_key, get_configuration, mail::MailSettings},
+    startup::Application,
     telemetry::init_telemetry,
 };
 use secrecy::ExposeSecret;
@@ -15,7 +14,6 @@ use std::process::{Child, Command};
 use std::{
     env,
     io::{self, BufRead, BufReader},
-    net::TcpListener,
     process::Stdio,
 };
 use surrealdb::{engine::any::Any, Surreal};
@@ -30,36 +28,33 @@ pub async fn spawn_app(test_settings: TestSettings) -> io::Result<TestApp> {
     let TestSettings { spawn_smtp } = test_settings;
     env::set_var(get_app_env_key(), "test");
     Lazy::force(&TRACING);
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
-    let port = listener
-        .local_addr()
-        .expect("Failed to get local TCP port from listener")
-        .port();
-    let Settings {
-        database,
-        mut mail,
-        application,
-    } = get_configuration().expect("Failed to read configuration.");
 
-    let smtp_client = if spawn_smtp {
-        let (smtp_server_handle, smtp_port, http_port) = spawn_smtp_server(&mail);
-        mail.smtp_port = Some(smtp_port);
-        Some(TestSmtpServerClient::new(
-            mail.clone(),
-            smtp_server_handle,
-            http_port,
-        ))
-    } else {
-        None
+    let (configuration, smtp_client) = {
+        let mut c = get_configuration().expect("Failed to read configuration.");
+        c.application.port = 0;
+
+        let smtp_client = if spawn_smtp {
+            let (smtp_server_handle, smtp_port, http_port) = spawn_smtp_server(&c.mail);
+            c.mail.smtp_port = Some(smtp_port);
+            Some(TestSmtpServerClient::new(
+                c.mail.clone(),
+                smtp_server_handle,
+                http_port,
+            ))
+        } else {
+            None
+        };
+
+        (c, smtp_client)
     };
 
-    let db = init_db(database).await.expect("Could not initialize db");
-    let mailer = init_mailer(mail, application.environment).await;
-    let server = rush_data_server::run(listener, db.clone(), mailer);
-    spawn(server);
+    let application = Application::build(configuration).await?;
+    let db = application.get_db_ref().clone();
+    let app_address = format!("http://127.0.0.1:{}", application.port());
+    spawn(application.run_until_stopped());
 
     Ok(TestApp {
-        app_address: format!("http://127.0.0.1:{}", port),
+        app_address,
         db,
         smtp_client,
     })
@@ -87,7 +82,7 @@ fn get_free_ports(host: &str) -> (u16, u16) {
 }
 
 fn spawn_mail_server(host: &str, smtp_port: u16, http_port: u16) -> Child {
-    Command::new("mailtutan")
+    Command::new("mailtutan") // TODO: attempt to load path to mailtutan from env variable for cicd purposes
         .args([
             "--ip",
             host,
