@@ -18,9 +18,9 @@ DEFINE FIELD confirmed ON account TYPE bool PERMISSIONS NONE DEFAULT false;
 DEFINE FIELD instances ON account TYPE array PERMISSIONS FOR select, create, update WHERE id = $auth.id DEFAULT [];
 DEFINE FIELD instances.* ON TABLE account TYPE record(instance);
 DEFINE FIELD created_at ON TABLE account TYPE datetime PERMISSIONS NONE DEFAULT time::now();
-DEFINE FIELD created_by ON TABLE account TYPE option<record(account)> VALUE ($auth.id OR account:system) PERMISSIONS NONE;
+DEFINE FIELD created_by ON TABLE account TYPE record(account) DEFAULT ($auth.id OR account:system) PERMISSIONS NONE;
 DEFINE FIELD updated_at ON TABLE account TYPE datetime PERMISSIONS NONE DEFAULT time::now();
-DEFINE FIELD updated_by ON TABLE account TYPE option<record(account)> PERMISSIONS NONE VALUE $auth.id OR account:system;
+DEFINE FIELD updated_by ON TABLE account TYPE record(account) PERMISSIONS NONE DEFAULT $auth.id OR account:system;
 DEFINE INDEX email ON account FIELDS email UNIQUE;
 DEFINE EVENT on_update ON TABLE account WHEN $event = "UPDATE" THEN {
 	$after.updated_at = time::now();

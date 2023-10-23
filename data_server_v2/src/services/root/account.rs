@@ -4,6 +4,8 @@ use crate::model::account::CreateAccountDto;
 use crate::model::CreateTable;
 use crate::model::Table;
 use crate::services::util::HttpError;
+use crate::AppAddress;
+use actix_web::http::Uri;
 use actix_web::web;
 use actix_web::HttpResponse;
 use lettre::message::header::ContentType;
@@ -12,13 +14,16 @@ use lettre::AsyncTransport;
 use lettre::Message;
 use lettre::Tokio1Executor;
 
+use serde::Deserialize;
 use surrealdb::{engine::any::Any, Surreal};
+use uuid::Uuid;
 
-#[tracing::instrument(skip(mailer, db))]
+#[tracing::instrument(skip(mailer, db, app_address))]
 pub async fn create_account(
     instance: web::Json<CreateAccountDto>,
     db: web::Data<Surreal<Any>>,
     mailer: web::Data<AsyncSmtpTransport<Tokio1Executor>>,
+    app_address: web::Data<AppAddress>,
 ) -> HttpResponse {
     tracing::trace!("Reached create_account route handler");
     let (resp, account) = match create_account_db(instance, db).await {
@@ -30,7 +35,7 @@ pub async fn create_account(
     };
 
     if let Some(account) = account {
-        match send_confirmation_email(&account, mailer).await {
+        match send_confirmation_email(&account, mailer, app_address).await {
             Ok(_) => tracing::trace!("Confirmation email send success"),
             Err(e) => {
                 tracing::error!("Confirmation email send failed with error: {e}")
@@ -64,14 +69,22 @@ async fn create_account_db(
     Ok(account)
 }
 
-#[tracing::instrument(skip(mailer))]
+#[tracing::instrument(skip(mailer, app_address))]
 async fn send_confirmation_email(
     account: &Account,
     mailer: web::Data<lettre::AsyncSmtpTransport<Tokio1Executor>>,
+    app_address: web::Data<AppAddress>,
 ) -> Result<(), anyhow::Error> {
     tracing::info!("Attempting to send confirmation email");
 
     tracing::debug!("Building the email");
+    let endpoint = format!(
+        "http://{}/account/confirm?token={}",
+        app_address.0,
+        Uuid::new_v4() // TODO: actually get the generated UUID
+    ); // TODO: handle https
+    let confirmation_link = Uri::try_from(endpoint).unwrap();
+
     // TODO: make message settings subject to configuration
     let message = Message::builder()
         .from("no-reply <no-reply@rush.io>".parse()?) // TODO: make this configurable
@@ -89,7 +102,10 @@ async fn send_confirmation_email(
         .parse()?)
         .subject("Please confirm your email address")
         .header(ContentType::TEXT_PLAIN)
-        .body::<String>("Please click the link to confirm your email address.".into())?;
+        .body::<String>(format!(
+            r#"Please click <a href="{}">here</a> to confirm your email address."#,
+            confirmation_link
+        ))?;
     tracing::debug!("Build success");
 
     tracing::debug!("Sending email...");
@@ -97,4 +113,15 @@ async fn send_confirmation_email(
     tracing::info!("Confirmation email send success");
 
     Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Parameters {
+    #[allow(unused)]
+    token: Uuid,
+}
+
+#[tracing::instrument(name = "Confirm an account")]
+pub async fn confirm(parameters: web::Query<Parameters>) -> HttpResponse {
+    HttpResponse::Ok().finish()
 }

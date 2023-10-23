@@ -1,4 +1,7 @@
-use self::{account::create_account, instance::create_instance};
+use self::{
+    account::{confirm, create_account},
+    instance::create_instance,
+};
 use crate::guards::instance_filter::instance_filter;
 use actix_web::{
     guard::{self, fn_guard},
@@ -16,8 +19,9 @@ pub fn root_service(cfg: &mut web::ServiceConfig) {
             .route(web::post().to(create_instance)),
     )
     .service(
-        web::resource("/account")
+        web::scope("/account")
             .guard(guard::Not(fn_guard(instance_filter)))
-            .route(web::post().to(create_account)),
+            .route("", web::post().to(create_account))
+            .route("/confirm", web::get().to(confirm)),
     );
 }

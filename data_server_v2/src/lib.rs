@@ -28,6 +28,7 @@ pub async fn run(
 ) -> io::Result<Server> {
     // TODO: create instance guard to handle directing to instance handling or main admin instance
     // TODO: set up proper tracing logs for existing endpoints and middleware
+    let app_address = listener.local_addr().unwrap();
     Ok(HttpServer::new(move || {
         App::new()
             .wrap(VirtualHostProcessor)
@@ -37,7 +38,10 @@ pub async fn run(
             .route("/health_check", web::get().to(health_check))
             .app_data(Data::new(db.clone()))
             .app_data(Data::new(mailer.clone()))
+            .app_data(Data::new(AppAddress(app_address.to_string())))
     })
     .listen(listener)?
     .run())
 }
+
+pub struct AppAddress(pub String);

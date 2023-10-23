@@ -20,19 +20,24 @@ use std::{
     fmt::Display,
     process::{Child, Command},
 };
-use surrealdb::{engine::any::Any, Surreal};
+use surrealdb::{engine::any::Any, sql::Uuid, Surreal};
 
 pub struct TestApp {
-    pub app_address: String,
+    pub app_address: reqwest::Url,
     pub db: Surreal<Any>,
     pub smtp_client: Option<TestSmtpServerClient>,
 }
 
 impl TestApp {
+    const ACCOUNT_CONFIRM_ENDPOINT: &str = "/account/confirm";
+    const ACCOUNT_ENDPOINT: &str = "/account";
+    const INSTANCE_ENDPOINT: &str = "/instance";
+    const APPLICATION_JSON: &str = "application/json";
+
     pub async fn post_account(&self, body: &CreateAccountDto) -> reqwest::Response {
         reqwest::Client::new()
-            .post(&format!("{}/account", &self.app_address))
-            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .post(self.app_address.join(Self::ACCOUNT_ENDPOINT).unwrap())
+            .header(reqwest::header::CONTENT_TYPE, Self::APPLICATION_JSON)
             .json(body)
             .send()
             .await
@@ -41,9 +46,27 @@ impl TestApp {
 
     pub async fn post_instance(&self, body: &CreateInstanceDto) -> reqwest::Response {
         reqwest::Client::new()
-            .post(&format!("{}/instance", &self.app_address))
-            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .post(self.app_address.join(Self::INSTANCE_ENDPOINT).unwrap())
+            .header(reqwest::header::CONTENT_TYPE, Self::APPLICATION_JSON)
             .json(body)
+            .send()
+            .await
+            .expect("failed to execute request")
+    }
+
+    pub async fn confirm_account(&self, token: Option<Uuid>) -> reqwest::Response {
+        let mut url = self
+            .app_address
+            .join(Self::ACCOUNT_CONFIRM_ENDPOINT)
+            .unwrap();
+
+        if let Some(token) = token {
+            url.set_query(Some(&format!("token={token}")))
+        }
+
+        reqwest::Client::new()
+            .get(url)
+            .header(reqwest::header::CONTENT_TYPE, Self::APPLICATION_JSON)
             .send()
             .await
             .expect("failed to execute request")
@@ -76,7 +99,8 @@ pub async fn spawn_app(test_settings: TestSettings) -> io::Result<TestApp> {
 
     let application = Application::build(configuration).await?;
     let db = application.get_db_ref().clone();
-    let app_address = format!("http://127.0.0.1:{}", application.port());
+    let app_address =
+        reqwest::Url::parse(&format!("http://127.0.0.1:{}", application.port())).unwrap();
     spawn(application.run_until_stopped());
 
     Ok(TestApp {
