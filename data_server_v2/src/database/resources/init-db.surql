@@ -22,9 +22,32 @@ DEFINE FIELD created_by ON TABLE account TYPE option<record(account)> VALUE ($au
 DEFINE FIELD updated_at ON TABLE account TYPE datetime PERMISSIONS NONE DEFAULT time::now();
 DEFINE FIELD updated_by ON TABLE account TYPE option<record(account)> PERMISSIONS NONE VALUE $auth.id OR account:system;
 DEFINE INDEX email ON account FIELDS email UNIQUE;
-DEFINE EVENT on_update ON TABLE account WHEN $event = "CREATE" THEN {
-	UPDATE $after.id SET updated_at = time::now(), updated_by = $auth.id;
+DEFINE EVENT on_update ON TABLE account WHEN $event = "UPDATE" THEN {
+	$after.updated_at = time::now();
+	$after.updated_by = $auth.id;
 };
+DEFINE EVENT issue_token ON TABLE account WHEN $event = "CREATE" THEN {
+	let $token_ = CREATE confirmation_token;
+	RELATE ONLY $after->has->$token_;
+};
+DEFINE EVENT revoke_token ON TABLE account WHEN $event = "UPDATE" THEN {
+	LET $token_ = SELECT ->has->confirmation_token.* FROM $after;
+	IF $before.confirmed = true AND $token IS NOT NULL THEN {
+		DELETE $token_;
+	} END;
+	IF ($before.confirmed = false AND $after.confirmed = true AND $token_.created_at + 1d < time::now()) THEN {
+		THROW "Confirmation token is expired. Please reissue."
+	} END;
+	RETURN $after;
+};
+DEFINE INDEX unique_relationships 
+    ON TABLE has 
+    COLUMNS in, out UNIQUE;
+
+DEFINE PARAM $TOKEN_EXPIRATION VALUE 1d;
+DEFINE TABLE confirmation_token SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD created_at ON TABLE confirmation_token TYPE datetime PERMISSIONS NONE DEFAULT time::now();
+DEFINE FIELD token ON TABLE confirmation_tokens TYPE uuid PERMISSIONS NONE DEFAULT rand::uuid();
 
 CREATE account:system CONTENT {
 	email: "system@rush.io", # todo: system email account needs to be configurable
