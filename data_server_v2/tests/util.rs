@@ -2,7 +2,7 @@ use actix_web::rt::spawn;
 use get_port::Ops;
 use once_cell::sync::Lazy;
 use rand::Rng;
-use reqwest::Client;
+use reqwest::{Client, RequestBuilder};
 use rush_data_server::{
     configuration::{get_app_env_key, get_configuration, mail::MailSettings},
     model::{account::CreateAccountDto, instance::CreateInstanceDto},
@@ -11,11 +11,14 @@ use rush_data_server::{
 };
 use secrecy::ExposeSecret;
 use serde::Deserialize;
-use std::process::{Child, Command};
 use std::{
     env,
     io::{self, BufRead, BufReader},
     process::Stdio,
+};
+use std::{
+    fmt::Display,
+    process::{Child, Command},
 };
 use surrealdb::{engine::any::Any, Surreal};
 
@@ -150,6 +153,20 @@ pub struct TestSmtpServerClient {
     http_port: u16,
 }
 
+pub enum MailMessageFormat {
+    Plain,
+    Html,
+}
+
+impl Display for MailMessageFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MailMessageFormat::Plain => write!(f, "plain"),
+            MailMessageFormat::Html => write!(f, "html"),
+        }
+    }
+}
+
 impl TestSmtpServerClient {
     pub fn new(settings: MailSettings, server_handle: Child, http_port: u16) -> Self {
         Client::new();
@@ -164,35 +181,60 @@ impl TestSmtpServerClient {
     const MESSAGES_ENDPOINT: &str = "/api/messages";
 
     pub async fn get_messages(&self) -> Vec<MailtutanJsonMail> {
-        let host = self
-            .settings
-            .http_host
-            .as_ref()
-            .expect("Test environment needs an http host for the smtp server but found None");
+        let host = self.get_host();
 
-        let mut req = self.client.get(format!(
+        let req = self.client.get(format!(
             "http://{host}:{}{}",
             self.http_port,
             Self::MESSAGES_ENDPOINT
         ));
 
+        let req = self.set_auth(req);
+
+        req.send()
+            .await
+            .map_err(|e| format!("Failed to retrieve messages from Mailtutan: {e}"))
+            .unwrap()
+            .json()
+            .await
+            .expect("Failed to deserilize messages")
+    }
+
+    pub async fn get_message(&self, id: usize, format: MailMessageFormat) -> String {
+        let host = self.get_host();
+
+        let req = self.client.get(format!(
+            "http://{host}:{}{}/{id}/{format}",
+            self.http_port,
+            Self::MESSAGES_ENDPOINT,
+        ));
+
+        let req = self.set_auth(req);
+
+        req.send()
+            .await
+            .map_err(|e| format!("Failed to retrieve message from Mailtutan: {e}"))
+            .unwrap()
+            .text()
+            .await
+            .expect("msg")
+    }
+
+    fn get_host(&self) -> &str {
+        self.settings
+            .http_host
+            .as_ref()
+            .expect("Test environment needs an http host for the smtp server but found None")
+    }
+
+    fn set_auth(&self, mut req: RequestBuilder) -> RequestBuilder {
         if let (Some(username), Some(password)) =
             (&self.settings.smtp_username, &self.settings.smtp_password)
         {
             req = req.basic_auth(username, Some(password.expose_secret().to_owned()));
         };
 
-        let body = req
-            .send()
-            .await
-            .map_err(|e| format!("Failed to retrieve messages from Mailtutan: {e}"))
-            .unwrap()
-            .json()
-            .await
-            .expect("Failed to convert the list of messages to a string");
-
-        dbg!(&body);
-        body
+        req
     }
 }
 
@@ -204,7 +246,7 @@ impl Drop for TestSmtpServerClient {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct MailtutanJsonMail {
     pub id: usize,
     pub sender: String,

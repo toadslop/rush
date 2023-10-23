@@ -1,6 +1,6 @@
 use crate::{
     root::fakes::DummyAccountDto,
-    util::{spawn_app, TestSettings},
+    util::{spawn_app, MailMessageFormat, MailtutanJsonMail, TestApp, TestSettings},
 };
 use fake::{
     faker::{
@@ -93,32 +93,17 @@ async fn create_account_returns_400_for_invalid_input() {
 
 #[actix_web::test]
 async fn create_account_sends_confirmation_email() {
-    let test_app = spawn_app(TestSettings { spawn_smtp: true })
+    let mut test_app = spawn_app(TestSettings { spawn_smtp: true })
         .await
         .expect("Failed to spawn app.");
 
-    let body: DummyAccountDto = Faker.fake();
-
-    let response: Account = test_app
-        .post_account(&body)
-        .await
-        .json()
-        .await
-        .expect("Failed to deserialize account from response.");
+    let response: Account = post_dummy_account(&test_app).await;
 
     let account_email = response
         .email
         .expect("The response should have included an email");
 
-    let messages = test_app
-        .smtp_client
-        .expect("This test requires an smtp client. Set 'spawn_smtp' to true in TestSettings")
-        .get_messages()
-        .await;
-
-    let message = messages
-        .get(0)
-        .expect("There should have been a first email message");
+    let message = extract_confirmation_email(&mut test_app).await;
 
     let email = message
         .recipients
@@ -126,4 +111,65 @@ async fn create_account_sends_confirmation_email() {
         .expect("There should have been a recipient but there wasn't");
 
     assert_eq!(&account_email.0, email)
+}
+
+#[actix_web::test]
+async fn create_account_send_a_confirmation_email_with_a_link() {
+    // Arrange
+    let mut test_app = spawn_app(TestSettings { spawn_smtp: true })
+        .await
+        .expect("Failed to spawn app.");
+    post_dummy_account(&test_app).await;
+    let message = extract_confirmation_email(&mut test_app).await;
+    let html = test_app
+        .smtp_client
+        .as_mut()
+        .expect("should have client")
+        .get_message(message.id, MailMessageFormat::Html)
+        .await;
+    let plain = test_app
+        .smtp_client
+        .expect("should have client")
+        .get_message(message.id, MailMessageFormat::Plain)
+        .await;
+
+    let get_link = |s: &str| {
+        let links: Vec<_> = linkify::LinkFinder::new()
+            .links(s)
+            .filter(|l| *l.kind() == linkify::LinkKind::Url)
+            .collect();
+        assert_eq!(links.len(), 1);
+
+        links[0].as_str().to_owned()
+    };
+
+    let html_link = get_link(&html);
+    let plain_link = get_link(&plain);
+
+    assert_eq!(html_link, plain_link);
+}
+
+async fn post_dummy_account(test_app: &TestApp) -> Account {
+    let body: DummyAccountDto = Faker.fake();
+
+    test_app
+        .post_account(&body)
+        .await
+        .json()
+        .await
+        .expect("Failed to deserialize account from response.")
+}
+
+async fn extract_confirmation_email(test_app: &mut TestApp) -> MailtutanJsonMail {
+    let messages = test_app
+        .smtp_client
+        .as_mut()
+        .expect("This test requires an smtp client. Set 'spawn_smtp' to true in TestSettings")
+        .get_messages()
+        .await;
+
+    messages
+        .get(0)
+        .expect("There should have been a first email message")
+        .clone()
 }

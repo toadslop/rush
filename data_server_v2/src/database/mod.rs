@@ -31,10 +31,14 @@ pub async fn init_db(settings: DatabaseSettings) -> anyhow::Result<Surreal<Any>>
 
         tracing::trace!("Running initialization query: {query}");
 
-        db.query(query)
+        let mut res = db
+            .query(query)
             .await
             .map_err(|e| format!("Failed to run init_db script on database: {e}"))
             .unwrap();
+        let errors = res.take_errors();
+        dbg!(errors);
+
         tracing::trace!("Initialization query success")
     };
 
@@ -47,7 +51,7 @@ pub async fn connect_to_root_db(settings: &DatabaseSettings) -> anyhow::Result<S
     tracing::debug!("Attempting to connect to the database");
     let capabilities = Capabilities::all();
     let config = Config::default().capabilities(capabilities);
-    println!("{}", settings.connection.get_conn_string());
+
     let db: Surreal<Any> = connect((settings.connection.get_conn_string(), config)).await?;
     tracing::debug!("Connection success");
 
