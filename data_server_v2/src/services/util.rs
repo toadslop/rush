@@ -24,13 +24,24 @@ impl From<surrealdb::Error> for HttpError {
                 } => Self(HttpResponse::BadRequest().json(ErrorBody {
                     message: format!("value '{value} for {field} of entity '{thing}' does not conform to the following expression: '{check}'"),
                 })),
+                surrealdb::error::Db::TxFailure => Self(HttpResponse::BadRequest().json(ErrorBody {
+                    message: "Transaction failed".into(),
+                })),
+                surrealdb::error::Db::QueryNotExecuted => Self(HttpResponse::BadRequest().json(ErrorBody {
+                    message: e.to_string(),
+                })),
                 _ => Self(HttpResponse::InternalServerError().json(ErrorBody {
                     message: "An unknown internal server error occurred".into(),
                 })),
             },
-            surrealdb::Error::Api(_) => Self(HttpResponse::InternalServerError().json(ErrorBody {
-                message: "An unknown internal server error occurred".into(),
-            })),
+            surrealdb::Error::Api(err) => match err {
+                surrealdb::error::Api::Query(e) => Self(HttpResponse::BadRequest().json(ErrorBody {
+                    message: e,
+                })),
+                _ => Self(HttpResponse::InternalServerError().json(ErrorBody {
+                    message: "An unknown internal server error occurred".into(),
+                })),
+            },
         }
     }
 }

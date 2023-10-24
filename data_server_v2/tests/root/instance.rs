@@ -52,12 +52,16 @@ async fn create_instance_returns_200_for_valid_input() {
     let response = test_app.post_instance(&body).await;
 
     assert_eq!(200, response.status().as_u16());
+    let body = &response.text().await.unwrap();
+    dbg!(body);
 
     let instance: Option<Instance> = test_app
         .db
         .select((Instance::name(), instance_name))
         .await
         .expect("Failed to find the created instance in the database");
+
+    dbg!(&instance);
 
     let name = instance
         .expect("An instance should have been created")
@@ -102,7 +106,7 @@ async fn create_instance_returns_200_for_valid_input() {
 }
 
 #[actix_web::test]
-async fn create_instance_a_400_when_data_is_missing() {
+async fn create_instance_returns_a_400_when_data_is_missing() {
     let test_app = spawn_app(TestSettings { spawn_smtp: false })
         .await
         .expect("Failed to spawn app.");

@@ -19,14 +19,15 @@ pub async fn extract_message_body(
         .await
 }
 
-pub fn extract_confirmation_link(s: &str) -> String {
+pub fn extract_confirmation_link(s: &str) -> reqwest::Url {
     let links: Vec<_> = linkify::LinkFinder::new()
         .links(s)
         .filter(|l| *l.kind() == linkify::LinkKind::Url)
         .collect();
     assert_eq!(links.len(), 1);
 
-    links[0].as_str().to_owned()
+    let raw_link = links[0].as_str().to_owned();
+    reqwest::Url::parse(&raw_link).unwrap()
 }
 
 pub async fn post_dummy_account(test_app: &TestApp) -> Account {

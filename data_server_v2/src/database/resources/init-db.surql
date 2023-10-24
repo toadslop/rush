@@ -1,3 +1,5 @@
+USE ns root db root;
+
 BEGIN TRANSACTION;
 
 # Initialize root namespace and database
@@ -10,36 +12,71 @@ DEFINE TABLE account SCHEMAFULL
 	PERMISSIONS
 		FOR select, update WHERE id = $auth.id;
 
-DEFINE FIELD name ON account TYPE string ASSERT string::len($value) <= 50 PERMISSIONS FOR select, create, update WHERE id = $auth.id;
+DEFINE FIELD name ON account TYPE string
+	ASSERT string::len($value) <= 50
+	PERMISSIONS FOR select, create, update
+		WHERE id = $auth.id;
 # email may not be changed
-DEFINE FIELD email ON account TYPE string ASSERT string::is::email($value) AND string::len($value) <= 320 PERMISSIONS FOR select, create WHERE id = $auth.id;
-DEFINE FIELD password ON account TYPE string PERMISSIONS FOR select, create, update WHERE id = $auth.id ASSERT string::len($value) >= 8 AND string::len($value) <= 16;
-DEFINE FIELD confirmed ON account TYPE bool PERMISSIONS NONE DEFAULT false;
-DEFINE FIELD instances ON account TYPE array PERMISSIONS FOR select, create, update WHERE id = $auth.id DEFAULT [];
+DEFINE FIELD email ON account TYPE string
+	ASSERT string::is::email($value) AND string::len($value) <= 320
+	PERMISSIONS FOR select, create
+		WHERE id = $auth.id;
+
+DEFINE FIELD password ON account TYPE string
+	PERMISSIONS FOR select, create, update
+		WHERE id = $auth.id
+		ASSERT string::len($value) >= 8 AND string::len($value) <= 16;
+
+DEFINE FIELD confirmed ON account TYPE bool
+	PERMISSIONS NONE
+	DEFAULT false;
+
+DEFINE FIELD instances ON account TYPE array
+	PERMISSIONS FOR select, create, update
+		WHERE id = $auth.id
+	DEFAULT [];
+
 DEFINE FIELD instances.* ON TABLE account TYPE record(instance);
-DEFINE FIELD created_at ON TABLE account TYPE datetime PERMISSIONS NONE DEFAULT time::now();
-DEFINE FIELD created_by ON TABLE account TYPE record(account) DEFAULT ($auth.id OR account:system) PERMISSIONS NONE;
-DEFINE FIELD updated_at ON TABLE account TYPE datetime PERMISSIONS NONE DEFAULT time::now();
-DEFINE FIELD updated_by ON TABLE account TYPE record(account) PERMISSIONS NONE DEFAULT $auth.id OR account:system;
+
+DEFINE FIELD created_at ON TABLE account TYPE datetime
+	PERMISSIONS NONE
+	DEFAULT time::now();
+
+DEFINE FIELD created_by ON TABLE account TYPE record(account)
+	DEFAULT $auth.id OR account:system PERMISSIONS NONE;
+
+DEFINE FIELD updated_at ON TABLE account TYPE datetime
+	PERMISSIONS NONE
+	DEFAULT time::now();
+
+DEFINE FIELD updated_by ON TABLE account TYPE record(account)
+	PERMISSIONS NONE
+	DEFAULT $auth.id OR account:system;
+
 DEFINE INDEX email ON account FIELDS email UNIQUE;
+
 DEFINE EVENT on_update ON TABLE account WHEN $event = "UPDATE" THEN {
 	$after.updated_at = time::now();
-	$after.updated_by = $auth.id;
+	$after.updated_by = $auth.id OR account:system;
 };
+
 DEFINE EVENT issue_token ON TABLE account WHEN $event = "CREATE" THEN {
 	let $token_ = CREATE confirmation_token;
 	RELATE ONLY $after->has->$token_;
 };
-DEFINE EVENT revoke_token ON TABLE account WHEN $event = "UPDATE" THEN {
-	LET $token_ = SELECT ->has->confirmation_token.* FROM $after;
-	IF $before.confirmed = true AND $token IS NOT NULL THEN {
-		DELETE $token_;
-	} END;
-	IF ($before.confirmed = false AND $after.confirmed = true AND $token_.created_at + 1d < time::now()) THEN {
-		THROW "Confirmation token is expired. Please reissue."
-	} END;
-	RETURN $after;
-};
+
+-- DEFINE EVENT revoke_token ON TABLE account WHEN $before.confirmed = false AND $after.confirmed = true THEN {
+-- 	LET $token_ = SELECT ->has->confirmation_token.created_at FROM $after;
+-- 	LET $expir = $token_[0]["->has"]["->confirmation_token"].created_at[0];
+-- 	IF $before.confirmed = true AND $token IS NOT NULL THEN {
+-- 		DELETE $token_;
+-- 	} END;
+-- 	IF ($before.confirmed = false AND $after.confirmed = true AND $expir + $TOKEN_EXPIRATION < time::now()) THEN {
+-- 		DELETE $token_;
+-- 		THROW "Confirmation token is expired. Please reissue."
+-- 	} END;
+-- };
+
 DEFINE INDEX unique_relationships 
     ON TABLE has 
     COLUMNS in, out UNIQUE;
@@ -47,14 +84,41 @@ DEFINE INDEX unique_relationships
 DEFINE PARAM $TOKEN_EXPIRATION VALUE 1d;
 DEFINE TABLE confirmation_token SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD created_at ON TABLE confirmation_token TYPE datetime PERMISSIONS NONE DEFAULT time::now();
-DEFINE FIELD token ON TABLE confirmation_tokens TYPE uuid PERMISSIONS NONE DEFAULT rand::uuid();
+DEFINE FIELD token ON TABLE confirmation_token TYPE uuid PERMISSIONS NONE DEFAULT rand::uuid::v4();
 
 CREATE account:system CONTENT {
 	email: "system@rush.io", # todo: system email account needs to be configurable
-	password: "testtest",
-	name: "system",
-	confirmed: true,
-	instances: [],
+ 	password: "testtest",
+ 	name: "system",
+ 	confirmed: true,
+ 	instances: [],
+};
+
+DEFINE FUNCTION fn::confirm_account($conf_token: uuid) {
+	let $account_token = (SELECT <-has<-account.*, id, created_at FROM confirmation_token WHERE token = $conf_token FETCH account)[0];
+	
+	IF $account_token IS NONE THEN {
+		THROW "Requested token not found";
+	} END;
+
+	let $account = $account_token["<-has"]["<-account"];
+
+	IF $account IS NONE THEN {
+		DELETE $account_token;
+		THROW "No account found for token";
+	} END;
+
+	-- TODO: fix this comparison 
+	IF $account_token.created_at + $TOKEN_EXPIRATION < time::now() THEN {
+		DELETE $account_token;
+		THROW "Token is expired. Please reissue."
+	} END;
+
+	$account = UPDATE $account MERGE {
+		confirmed: true
+	};
+	
+	RETURN $account;
 };
 
 
@@ -70,29 +134,29 @@ DEFINE SCOPE account SESSION 15m
 			password: crypto::argon2::generate($password)
 		}
 	);
-
+# 
 # Instance table
 DEFINE PARAM $INSTANCE_TYPE VALUE ["trial", "dev", "uat", "prod"];
 DEFINE PARAM $DB_URL VALUE "localhost:8000"; # TODO: handle database URLs dynamically
 DEFINE TABLE instance SCHEMAFULL;
 
-DEFINE FIELD name ON instance TYPE string ASSERT string::len($value) >= 8;
+DEFINE FIELD name ON instance TYPE string ASSERT string::len($value) >= 0;
 DEFINE FIELD account ON instance TYPE record(account);
-DEFINE FIELD db_url ON instance TYPE option<string> ASSERT string::is::url($value) VALUE type::string($DB_URL) PERMISSIONS NONE;
+DEFINE FIELD db_url ON instance TYPE string ASSERT string::is::url($value) DEFAULT type::string($DB_URL) PERMISSIONS NONE;
 DEFINE FIELD instance_type ON instance TYPE string ASSERT $value INSIDE $INSTANCE_TYPE DEFAULT "trial" PERMISSIONS NONE;;
-DEFINE FIELD namespace ON instance TYPE option<string> VALUE function() {
+DEFINE FIELD namespace ON instance TYPE option<string> DEFAULT function() {
 	let query = new surrealdb.Query("SELECT VALUE name FROM $id", { id: this.account });
 	return (await surrealdb.query(query))[0];
 } PERMISSIONS NONE;
-DEFINE FIELD database ON instance TYPE option<string> VALUE function() {
+DEFINE FIELD database ON instance TYPE string DEFAULT function() {
   	let query = new surrealdb.Query("SELECT VALUE name FROM $id", { id: this.account });
 	let account_name = (await surrealdb.query(query))[0];
 	return account_name + "_" + this.instance_type;
 } PERMISSIONS NONE;
 DEFINE FIELD created_at ON TABLE instance TYPE datetime PERMISSIONS NONE DEFAULT time::now();
-DEFINE FIELD created_by ON TABLE instance TYPE option<record(account)> VALUE ($auth.id OR account:system) PERMISSIONS NONE;
+DEFINE FIELD created_by ON TABLE instance TYPE record(account) DEFAULT $auth.id OR account:system PERMISSIONS NONE;
 DEFINE FIELD updated_at ON TABLE instance TYPE datetime PERMISSIONS NONE DEFAULT time::now();
-DEFINE FIELD updated_by ON TABLE instance TYPE option<record(account)> PERMISSIONS NONE VALUE $auth.id OR account:system;
+DEFINE FIELD updated_by ON TABLE instance TYPE record(account) PERMISSIONS NONE DEFAULT $auth.id OR account:system;
 
 DEFINE INDEX nameIndex ON TABLE instance COLUMNS name UNIQUE;
 DEFINE EVENT relate_account ON TABLE instance WHEN $event = "CREATE" THEN {

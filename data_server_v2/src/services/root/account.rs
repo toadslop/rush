@@ -1,8 +1,6 @@
 use crate::model::account::Account;
 use crate::model::account::CreateAccountDb;
 use crate::model::account::CreateAccountDto;
-use crate::model::CreateTable;
-use crate::model::Table;
 use crate::services::util::HttpError;
 use crate::AppAddress;
 use actix_web::http::Uri;
@@ -27,7 +25,10 @@ pub async fn create_account(
 ) -> HttpResponse {
     tracing::trace!("Reached create_account route handler");
     let (resp, account) = match create_account_db(instance, db).await {
-        Ok(account) => (HttpResponse::Ok().json(&account), account),
+        Ok(account) => (
+            HttpResponse::Ok().json(&account.as_ref().unwrap().account),
+            account,
+        ),
         Err(e) => {
             let e: HttpError = e.into();
             (e.inter_inner(), None)
@@ -48,30 +49,58 @@ pub async fn create_account(
     resp
 }
 
+#[derive(Debug, Deserialize)]
+struct Res {
+    account: Account,
+    token: Uuid,
+}
+
 #[tracing::instrument(skip(db))]
 async fn create_account_db(
     account: web::Json<CreateAccountDto>,
     db: web::Data<Surreal<Any>>,
-) -> Result<Option<Account>, surrealdb::Error> {
+) -> Result<Option<Res>, surrealdb::Error> {
     tracing::info!("Attempting to saving new account to the db");
     let account: CreateAccountDb = account.into_inner().into();
 
-    let account = db
-        .create::<Option<Account>>((Account::name(), account.id()))
-        .content(account)
+    let result = db
+        .query(r#"
+            BEGIN TRANSACTION;
+            LET $saved = CREATE ONLY account CONTENT $account;
+            LET $conf_token = (SELECT ->has->confirmation_token.token FROM $saved)[0]["->has"]["->confirmation_token"].token[0];
+            RETURN {
+                account: $saved,
+                token: $conf_token
+            };
+            COMMIT TRANSACTION;
+        "#,
+        )
+        .bind(("account", account))
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to persist account to db: {e}");
-            e
-        })?;
+        .unwrap();
+
+    let mut result = result.check().map_err(|e| {
+        tracing::error!("Failed to persist account to db: {e}");
+        e
+    })?;
+    let thing: Option<Res> = result.take(0).unwrap();
+
+    // let account = db
+    //     .create::<Option<Account>>((Account::name(), account.id()))
+    //     .content(account)
+    //     .await
+    // .map_err(|e| {
+    //     tracing::error!("Failed to persist account to db: {e}");
+    //     e
+    // })?;
 
     tracing::info!("Success");
-    Ok(account)
+    Ok(thing)
 }
 
 #[tracing::instrument(skip(mailer, app_address))]
 async fn send_confirmation_email(
-    account: &Account,
+    account: &Res,
     mailer: web::Data<lettre::AsyncSmtpTransport<Tokio1Executor>>,
     app_address: web::Data<AppAddress>,
 ) -> Result<(), anyhow::Error> {
@@ -81,7 +110,7 @@ async fn send_confirmation_email(
     let endpoint = format!(
         "http://{}/account/confirm?token={}",
         app_address.0,
-        Uuid::new_v4() // TODO: actually get the generated UUID
+        account.token // TODO: actually get the generated UUID
     ); // TODO: handle https
     let confirmation_link = Uri::try_from(endpoint).unwrap();
 
@@ -91,10 +120,12 @@ async fn send_confirmation_email(
         .to(format!(
             "{} <{}>",
             account
+                .account
                 .name
                 .as_ref()
                 .expect("Should have received the account name"), // TODO: properly handle this rather than using expect
             account
+                .account
                 .email
                 .as_ref()
                 .expect("Should have received the email address") // TODO: properly handle this rather than using expect
@@ -122,6 +153,33 @@ pub struct Parameters {
 }
 
 #[tracing::instrument(name = "Confirm an account")]
-pub async fn confirm(parameters: web::Query<Parameters>) -> HttpResponse {
-    HttpResponse::Ok().finish()
+pub async fn confirm(
+    parameters: web::Query<Parameters>,
+    db: web::Data<Surreal<Any>>,
+) -> HttpResponse {
+    tracing::trace!("Beginning account confirmation");
+    dbg!(&parameters.token);
+    let response = match db
+        .query(format!("fn::confirm_account('{}')", parameters.token))
+        .await
+    {
+        Ok(response) => response,
+        Err(e) => {
+            tracing::error!("Failed to to confirm the account: {e}");
+            let e: HttpError = e.into();
+            return e.inter_inner();
+        }
+    };
+    dbg!(&response);
+    match response.check() {
+        Ok(_) => {
+            tracing::trace!("Successfully confirmed the account");
+            HttpResponse::Ok().finish()
+        }
+        Err(e) => {
+            tracing::error!("Failed to to confirm the account: {e}");
+            let e: HttpError = e.into();
+            e.inter_inner()
+        }
+    }
 }
