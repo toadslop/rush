@@ -1,0 +1,1 @@
+DEFINE PARAM $DB_URL VALUE "localhost:8000"; # TODO: handle database URLs dynamically

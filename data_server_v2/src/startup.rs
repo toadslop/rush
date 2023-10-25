@@ -5,7 +5,7 @@ use surrealdb::{engine::any::Any, Surreal};
 
 use crate::{
     configuration::{app::ApplicationSettings, Settings},
-    database::init_db,
+    database::init::init_db,
     mailer::init_mailer,
     run,
 };
