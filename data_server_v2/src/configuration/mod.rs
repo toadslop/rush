@@ -37,10 +37,12 @@ pub fn get_configuration() -> Result<Settings, ConfigError> {
     let app_env_key = get_app_env_key();
 
     let environment: Environment = std::env::var(app_env_key.clone())
+        .map_err(|_| std::env::set_var(&app_env_key, "dev"))
         .unwrap_or_else(|_| "dev".into())
         .try_into()
         .map_err(|e| tracing::error!("Failed to load env var {}: {e}", &app_env_key))
         .unwrap();
+
     tracing::trace!("App environment is: {:?}", environment);
 
     let environment_filename = format!("config.{}.yaml", environment.as_ref());

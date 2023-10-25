@@ -6,24 +6,27 @@ use crate::{
     services::util::HttpError,
 };
 use actix_web::{web, HttpResponse};
+use anyhow::Context;
 use surrealdb::{engine::any::Any, Surreal};
 
 #[tracing::instrument(skip(db))]
 pub async fn create_instance(
     instance: web::Json<CreateInstanceDto>,
     db: web::Data<Surreal<Any>>,
-) -> HttpResponse {
+) -> Result<HttpResponse, actix_web::Error> {
     tracing::trace!("Reached create_instance route handler");
 
     let resp = match create_instance_db(instance, db).await {
         Ok(instance) => HttpResponse::Ok().json(instance),
         Err(e) => {
+            tracing::error!("{e}");
             let e: HttpError = e.into();
             e.inter_inner()
         }
     };
     tracing::trace!("Handler exited");
-    resp
+
+    Ok(resp)
 }
 
 #[tracing::instrument(skip(db))]
@@ -37,11 +40,10 @@ async fn create_instance_db(
     let instance = db
         .create::<Option<Instance>>((Instance::name(), instance.id()))
         .content(instance)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to persist instance to db: {e}");
-            e
-        })?;
+        .await?;
     tracing::info!("Success");
     Ok(instance)
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum CreateInstanceError {}

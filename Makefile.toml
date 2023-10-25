@@ -12,18 +12,10 @@ command = "mailtutan"
 command = "updns" # TODO: create config file and point to it here with -c
 
 [tasks.start_server]
+env = { "RUST_MIN_STACK" = 104857600 }
+cwd = "C:\\Users\\bnhei\\source\\repos\\toadslop\\rush\\data_server_v2"
 command = "cargo"
-args = [
-    "-p",
-    "rush_data_server",
-    "watch",
-    "-x",
-    "check",
-    "-x",
-    "test",
-    "-x",
-    "run",
-]
+args = ["watch", "-x", "check", "-x", "test", "-x", "run"]
 
 [tasks.udeps]
 command = "cargo"

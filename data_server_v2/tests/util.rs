@@ -79,7 +79,7 @@ pub async fn spawn_app(test_settings: TestSettings) -> io::Result<TestApp> {
     Lazy::force(&TRACING);
 
     let (configuration, smtp_client) = {
-        let mut c = get_configuration().expect("Failed to read configuration.");
+        let mut c = get_configuration().expect("Failed to read configuration");
         c.application.port = 0;
 
         let smtp_client = if spawn_smtp {

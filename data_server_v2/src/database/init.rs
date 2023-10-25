@@ -2,6 +2,7 @@ use include_dir::include_dir;
 use include_dir::Dir;
 use surrealdb::engine::any::connect;
 use surrealdb::engine::any::Any;
+use surrealdb::opt::auth::Root;
 use surrealdb::opt::capabilities::Capabilities;
 use surrealdb::opt::Config;
 use surrealdb::Surreal;
@@ -26,23 +27,32 @@ pub async fn init_db(
     if settings.connection == ConnectionType::InMemory || *app_env == Environment::Dev {
         tracing::debug!("Initializing in-memory database. This should be used for testing only.");
 
-        let tx: String = DB_QUERIES
-            .files()
-            .map(|f| f.contents_utf8().expect("Failed to read surql file"))
-            .fold(Transaction::new(), |tx, q| tx.add_query(q))
-            .build();
-
-        tracing::trace!("Running initialization query: {tx}");
-
-        let mut res = db
-            .query(tx)
+        let mut init = db
+            .query("RETURN $INITIALIZED;")
             .await
-            .map_err(|e| format!("Failed to run init_db script on database: {e}"))
-            .unwrap();
-        let errors = res.take_errors();
-        dbg!(errors);
+            .expect("Initialized query failed");
 
-        tracing::trace!("Initialization query success")
+        let init: Option<bool> = init.take(0).expect("Got  nothing from query");
+
+        if init.is_none() {
+            let tx: String = DB_QUERIES
+                .files()
+                .map(|f| f.contents_utf8().expect("Failed to read surql file"))
+                .fold(Transaction::new(), |tx, q| tx.add_query(q))
+                .build();
+
+            tracing::trace!("Running initialization query: {tx}");
+
+            let mut res = db
+                .query(tx)
+                .await
+                .map_err(|e| format!("Failed to run init_db script on database: {e}"))
+                .unwrap();
+            let errors = res.take_errors();
+            dbg!(errors);
+
+            tracing::trace!("Initialization query success")
+        }
     };
 
     tracing::info!("Initialation success");
@@ -53,7 +63,10 @@ pub async fn init_db(
 pub async fn connect_to_root_db(settings: &DatabaseSettings) -> anyhow::Result<Surreal<Any>> {
     tracing::debug!("Attempting to connect to the database");
     let capabilities = Capabilities::all();
-    let config = Config::default().capabilities(capabilities);
+    let config = Config::default().capabilities(capabilities).user(Root {
+        username: "root",
+        password: "root", // TODO: handle through configuration
+    });
 
     let db: Surreal<Any> = connect((settings.connection.get_conn_string(), config)).await?;
     tracing::debug!("Connection success");
@@ -64,6 +77,13 @@ pub async fn connect_to_root_db(settings: &DatabaseSettings) -> anyhow::Result<S
         .use_db("root")
         .await
         .expect("Could not use the root namespace or root db");
+
+    db.signin(Root {
+        password: "root",
+        username: "root",
+    })
+    .await
+    .expect("Failed to login to the database");
 
     tracing::debug!("Accessing success");
 

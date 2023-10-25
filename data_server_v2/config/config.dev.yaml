@@ -3,10 +3,12 @@ database:
     type: "Local"
     host: "127.0.0.1"
     port: 8000
+    user: root
+    password: root
 mail:
   smtp_host: localhost
   smtp_port: 1025
   http_host: localhost
   http_port: 1080
-  smtp_username: user
-  smtp_password: password
+  # smtp_username: user
+  # smtp_password: password
