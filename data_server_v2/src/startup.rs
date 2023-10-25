@@ -1,6 +1,5 @@
-use std::net::TcpListener;
-
 use actix_web::dev::Server;
+use std::net::TcpListener;
 use surrealdb::{engine::any::Any, Surreal};
 
 use crate::{
@@ -25,7 +24,7 @@ impl Application {
         } = configuration.application;
         let address = format!("{host}:{port}");
 
-        let db = init_db(configuration.database)
+        let db = init_db(configuration.database, &environment)
             .await
             .expect("Could not initialize db");
         let mailer = init_mailer(configuration.mail, environment).await;

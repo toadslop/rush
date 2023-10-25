@@ -8,20 +8,22 @@ use surrealdb::Surreal;
 
 use crate::configuration::db::ConnectionType;
 use crate::configuration::db::DatabaseSettings;
+use crate::configuration::Environment;
 use crate::database::util::Transaction;
 
 pub static DB_QUERIES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/database/resources");
 
 #[tracing::instrument(name = "Initializing the database")]
-pub async fn init_db(settings: DatabaseSettings) -> anyhow::Result<Surreal<Any>> {
+pub async fn init_db(
+    settings: DatabaseSettings,
+    app_env: &Environment,
+) -> anyhow::Result<Surreal<Any>> {
     tracing::info!("Initializing the database");
     tracing::debug!("Attempting to connect to the database");
 
     let db = connect_to_root_db(&settings).await?;
 
-    if settings.connection == ConnectionType::InMemory {
-        // Turn on scripting capabilities as these are required for Rush
-
+    if settings.connection == ConnectionType::InMemory || *app_env == Environment::Dev {
         tracing::debug!("Initializing in-memory database. This should be used for testing only.");
 
         let tx: String = DB_QUERIES

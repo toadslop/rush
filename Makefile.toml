@@ -1,0 +1,34 @@
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+[tasks.start_db]
+command = "surreal"
+args = ["start", "memory", "-A", "--auth", "--user", "root", "--pass", "root"]
+
+[tasks.start_smtp]
+command = "mailtutan"
+
+[tasks.start_dns]
+command = "updns" # TODO: create config file and point to it here with -c
+
+[tasks.start_server]
+command = "cargo"
+args = [
+    "-p",
+    "rush_data_server",
+    "watch",
+    "-x",
+    "check",
+    "-x",
+    "test",
+    "-x",
+    "run",
+]
+
+[tasks.udeps]
+command = "cargo"
+args = ["+nightly", "udeps"]
+
+[tasks.audit]
+command = "cargo"
+args = ["audit"]
