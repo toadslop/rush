@@ -24,3 +24,11 @@ args = ["+nightly", "udeps"]
 [tasks.audit]
 command = "cargo"
 args = ["audit"]
+
+[tasks.start]
+run_task = { name = [
+    "start_db",
+    "start_smtp",
+    "start_dns",
+    "start_server",
+], fork = true, parallel = true }
