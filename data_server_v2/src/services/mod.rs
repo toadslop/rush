@@ -3,9 +3,9 @@ use futures_util::join;
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
 use surrealdb::{engine::any::Any, Surreal};
 
+mod error;
 pub mod instance;
 pub mod root;
-mod util;
 
 #[tracing::instrument(name = "Health check")]
 pub async fn health_check(

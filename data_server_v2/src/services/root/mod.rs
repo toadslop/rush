@@ -1,5 +1,5 @@
 use self::{
-    account::{confirm, create_account},
+    account::{confirm::confirm, create::create_account},
     instance::create_instance,
 };
 use crate::guards::instance_filter::instance_filter;
@@ -7,7 +7,6 @@ use actix_web::{
     guard::{self, fn_guard},
     web,
 };
-
 mod account;
 mod instance;
 

@@ -9,7 +9,7 @@ const DEFAULT_SMTP_PORT: u16 = 25;
 
 pub async fn init_mailer(
     settings: MailSettings,
-    app_environment: Environment,
+    app_environment: &Environment,
 ) -> AsyncSmtpTransport<Tokio1Executor> {
     let connection = format!(
         "smtp://{}:{}",
@@ -17,7 +17,7 @@ pub async fn init_mailer(
         settings.smtp_port.unwrap_or(DEFAULT_SMTP_PORT)
     );
 
-    let mailer = if app_environment == Environment::Prod {
+    let mailer = if *app_environment == Environment::Prod {
         let credentials = Credentials::new(
             settings
                 .smtp_username
@@ -50,7 +50,7 @@ pub async fn init_mailer(
     // We test if the environment is explicitly not set to test to handle some
     // possible edge cases
     #[cfg(test)]
-    if app_environment != Environment::Test {
+    if *app_environment != Environment::Test {
         mailer
             .test_connection()
             .await

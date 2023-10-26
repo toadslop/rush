@@ -32,9 +32,9 @@ pub fn init_telemetry() -> io::Result<()> {
 
     let subscriber = Registry::default()
         .with(env_filter)
+        .with(stdout_log.and_then(debug_log))
         .with(telemetry)
-        .with(JsonStorageLayer)
-        .with(stdout_log.and_then(debug_log));
+        .with(JsonStorageLayer);
 
     tracing::subscriber::set_global_default(subscriber)
         .expect("Failed to install `tracing` subscriber.");

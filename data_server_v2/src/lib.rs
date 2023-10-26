@@ -3,10 +3,11 @@ use actix_web::{
     web::{self, Data},
     App, HttpServer,
 };
+use configuration::app::ApplicationSettings;
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
 use middleware::virtual_hosting::VirtualHostProcessor;
 use services::{health_check, instance::instance_service, root::root_service};
-use std::{io, net::TcpListener};
+use std::{fmt::Display, io, net::TcpListener};
 use surrealdb::{engine::any::Any, Surreal};
 use tracing_actix_web::TracingLogger;
 
@@ -25,6 +26,7 @@ pub async fn run(
     listener: TcpListener,
     db: Surreal<Any>,
     mailer: AsyncSmtpTransport<Tokio1Executor>,
+    settings: ApplicationSettings,
 ) -> io::Result<Server> {
     // TODO: create instance guard to handle directing to instance handling or main admin instance
     // TODO: set up proper tracing logs for existing endpoints and middleware
@@ -38,6 +40,7 @@ pub async fn run(
             .route("/health_check", web::get().to(health_check))
             .app_data(Data::new(db.clone()))
             .app_data(Data::new(mailer.clone()))
+            .app_data(Data::new(settings.clone()))
             .app_data(Data::new(AppAddress(app_address.to_string())))
     })
     .listen(listener)?
@@ -45,3 +48,8 @@ pub async fn run(
 }
 
 pub struct AppAddress(pub String);
+impl Display for AppAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}

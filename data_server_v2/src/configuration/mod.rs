@@ -69,7 +69,7 @@ pub fn get_configuration() -> Result<Settings, ConfigError> {
     settings
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum Environment {
     Dev,

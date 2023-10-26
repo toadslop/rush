@@ -1,3 +1,6 @@
+application:
+  scheme: http
+  domain: localhost
 database:
   connection:
     type: "Local"

@@ -1,10 +1,4 @@
-POST http://localhost:8080/instance HTTP/1.1
-content-type: application/json
 
-{
-    "name": "",
-    "account_id": "test@@test.com"
-}
 
 ### should fail
 POST http://localhost:8080/account HTTP/1.1
@@ -15,15 +9,7 @@ content-type: application/json
     "password": ""
 }
 
-### should work
-POST http://localhost:8080/account HTTP/1.1
-content-type: application/json
 
-{
-    "name": "test",
-    "email": "tesst@test.com",
-    "password": "something"
-}
 
 ### Should do health check
 GET http://my-instance.rush.com:8080/health_check HTTP/1.1

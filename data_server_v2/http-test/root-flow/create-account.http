@@ -1,0 +1,20 @@
+### Successfully create an account
+POST http://localhost:8080/account HTTP/1.1
+content-type: application/json
+
+{
+    "name": "test",
+    "email": "tesst@test.com",
+    "password": "something"
+}
+
+### Error
+POST http://localhost:8080/account HTTP/1.1
+content-type: application/json
+
+{
+    "name": "test",
+    "email": "",
+    "password": ""
+}
+

@@ -10,34 +10,35 @@ use crate::{
 };
 
 pub struct Application {
-    port: u16,
+    settings: ApplicationSettings,
     server: Server,
     db: Surreal<Any>,
 }
 
 impl Application {
     pub async fn build(configuration: Settings) -> Result<Self, std::io::Error> {
-        let ApplicationSettings {
-            host,
-            port,
-            environment,
-        } = configuration.application;
-        let address = format!("{host}:{port}");
+        let mut settings = configuration.application;
+        let address = format!("{}:{}", &settings.host, &settings.port);
 
-        let db = init_db(configuration.database, &environment)
+        let db = init_db(configuration.database, &settings.environment)
             .await
             .expect("Could not initialize db");
-        let mailer = init_mailer(configuration.mail, environment).await;
+        let mailer = init_mailer(configuration.mail, &settings.environment).await;
 
         let listener = TcpListener::bind(address)?;
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, db.clone(), mailer).await?;
+        settings.port = port;
+        let server = run(listener, db.clone(), mailer, settings.clone()).await?;
 
-        Ok(Self { port, server, db })
+        Ok(Self {
+            settings,
+            server,
+            db,
+        })
     }
 
     pub fn port(&self) -> u16 {
-        self.port
+        self.settings.port
     }
 
     pub async fn run_until_stopped(self) -> Result<(), std::io::Error> {
