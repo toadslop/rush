@@ -3,3 +3,7 @@ TODO
 [x] Make creating the instance associate it with the account
 [ ] Handle email confirmation flow
 [ ] Set up authentication middleware backed by surrealdb
+[ ] clean up email test code
+[ ] clean up error handling and provide proper error messags
+
+NOTE: RUST_MIN_STACK=104857600 cargo test

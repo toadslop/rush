@@ -2,8 +2,8 @@ POST http://localhost:8080/instance HTTP/1.1
 content-type: application/json
 
 {
-    "name": "sample",
-    "account_id": "account:test"
+    "name": "",
+    "account_id": "test@@test.com"
 }
 
 ### should fail
@@ -20,7 +20,8 @@ POST http://localhost:8080/account HTTP/1.1
 content-type: application/json
 
 {
-    "email": "test@test.com",
+    "name": "test",
+    "email": "tesst@test.com",
     "password": "something"
 }
 
@@ -43,3 +44,9 @@ content-type: application/json
 {
     "name": "sample"
 }
+
+
+### get messages from smtp server
+GET http://localhost:1080/api/messages HTTP/1.1
+content-type: application/json
+
