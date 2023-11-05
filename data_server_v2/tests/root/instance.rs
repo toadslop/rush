@@ -1,5 +1,5 @@
 use crate::{
-    root::fakes::DummyAccountDto,
+    root::fakes::{DummyAccountDto, DummyCreateInstanceDto},
     util::{spawn_app, TestSettings},
 };
 use fake::{
@@ -32,15 +32,13 @@ async fn create_instance_returns_200_for_valid_input() {
     let _dummy_account: DummyAccountDto = Faker.fake();
     let dummy_account: CreateAccountDb = (*_dummy_account).clone().into();
 
-    let res = test_app
+    test_app
         .db
         .create::<Option<Account>>((Account::name(), _dummy_account.email.clone()))
         .content(&dummy_account)
         .await
         .map_err(|e| e.to_string())
         .expect("Failed to create test account");
-
-    dbg!(res);
 
     let instance_name = "my-instance";
 
@@ -138,4 +136,36 @@ async fn create_instance_returns_a_400_when_data_is_missing() {
             error_message
         );
     }
+}
+
+#[actix_web::test]
+async fn trying_to_create_instance_when_not_logged_in_returns_403() {
+    // Arrange
+    let test_app = spawn_app(TestSettings { spawn_smtp: false })
+        .await
+        .expect("Failed to spawn app.");
+
+    let _dummy_account: DummyAccountDto = Faker.fake();
+    let dummy_account: CreateAccountDb = (*_dummy_account).clone().into();
+
+    test_app
+        .db
+        .create::<Option<Account>>((Account::name(), _dummy_account.email.clone()))
+        .content(&dummy_account)
+        .await
+        .map_err(|e| e.to_string())
+        .expect("Failed to create test account");
+
+    let mut dummy_instance: DummyCreateInstanceDto = Faker.fake();
+    dummy_instance.account_id = _dummy_account.email.clone();
+
+    // Act
+    let resp = test_app.post_instance(&dummy_instance).await;
+
+    // Assert
+    assert_eq!(
+        401,
+        resp.status().as_u16(),
+        "The API did not fail with 403 Not Authorized when the requester was not logged in"
+    );
 }

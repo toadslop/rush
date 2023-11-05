@@ -1,5 +1,7 @@
 # The Rush instances that belong to an account;
-DEFINE TABLE instance SCHEMAFULL;
+DEFINE TABLE instance SCHEMAFULL
+    PERMISSIONS FOR create, update, select, delete
+        WHERE account = $auth.id;
 
 # Name of the instance
 # Todo: consider what a valid name should be

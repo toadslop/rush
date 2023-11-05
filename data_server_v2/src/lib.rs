@@ -3,9 +3,10 @@ use actix_web::{
     web::{self, Data},
     App, HttpServer,
 };
+
 use configuration::app::ApplicationSettings;
 use lettre::{AsyncSmtpTransport, Tokio1Executor};
-use middleware::virtual_hosting::VirtualHostProcessor;
+use middleware::{auth::AuthProcessor, virtual_hosting::VirtualHostProcessor};
 use services::{health_check, instance::instance_service, root::root_service};
 use std::{fmt::Display, io, net::TcpListener};
 use surrealdb::{engine::any::Any, Surreal};
@@ -34,6 +35,7 @@ pub async fn run(
     Ok(HttpServer::new(move || {
         App::new()
             .wrap(VirtualHostProcessor)
+            .wrap(AuthProcessor)
             .wrap(TracingLogger::default())
             .configure(root_service)
             .configure(instance_service)

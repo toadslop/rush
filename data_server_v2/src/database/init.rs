@@ -32,9 +32,9 @@ pub async fn init_db(
             .await
             .expect("Initialized query failed");
 
-        let init: Option<bool> = init.take(0).expect("Got  nothing from query");
+        let init: Option<bool> = init.take(0).expect("Got nothing from query");
 
-        if init.is_none() {
+        if !init.unwrap_or(false) {
             let tx: String = DB_QUERIES
                 .files()
                 .map(|f| f.contents_utf8().expect("Failed to read surql file"))
@@ -54,6 +54,10 @@ pub async fn init_db(
             tracing::trace!("Initialization query success")
         }
     };
+
+    db.invalidate()
+        .await
+        .expect("Failed to invalidate initial connection.");
 
     tracing::info!("Initialation success");
     Ok(db)
@@ -79,7 +83,7 @@ pub async fn connect_to_root_db(settings: &DatabaseSettings) -> anyhow::Result<S
         .expect("Could not use the root namespace or root db");
 
     db.signin(Root {
-        password: "root",
+        password: "root", // TODO: configuration by env variable
         username: "root",
     })
     .await

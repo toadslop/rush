@@ -5,7 +5,10 @@ use rand::Rng;
 use reqwest::{Client, RequestBuilder};
 use rush_data_server::{
     configuration::{get_app_env_key, get_configuration, mail::MailSettings},
-    model::{account::CreateAccountDto, instance::CreateInstanceDto},
+    model::{
+        account::{AccountSignin, CreateAccountDto},
+        instance::CreateInstanceDto,
+    },
     startup::Application,
     telemetry::init_telemetry,
 };
@@ -20,7 +23,7 @@ use std::{
     fmt::Display,
     process::{Child, Command},
 };
-use surrealdb::{engine::any::Any, sql::Uuid, Surreal};
+use surrealdb::{engine::any::Any, opt::auth::Root, sql::Uuid, Surreal};
 
 pub struct TestApp {
     pub app_address: reqwest::Url,
@@ -30,6 +33,7 @@ pub struct TestApp {
 
 impl TestApp {
     const ACCOUNT_CONFIRM_ENDPOINT: &str = "/account/confirm";
+    const ACCOUNT_SIGNIN_ENDPOINT: &str = "/account/signin";
     const ACCOUNT_ENDPOINT: &str = "/account";
     const INSTANCE_ENDPOINT: &str = "/instance";
     const APPLICATION_JSON: &str = "application/json";
@@ -37,6 +41,20 @@ impl TestApp {
     pub async fn post_account(&self, body: &CreateAccountDto) -> reqwest::Response {
         reqwest::Client::new()
             .post(self.app_address.join(Self::ACCOUNT_ENDPOINT).unwrap())
+            .header(reqwest::header::CONTENT_TYPE, Self::APPLICATION_JSON)
+            .json(body)
+            .send()
+            .await
+            .expect("failed to execute request")
+    }
+
+    pub async fn signin_account(&self, body: &AccountSignin) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(
+                self.app_address
+                    .join(Self::ACCOUNT_SIGNIN_ENDPOINT)
+                    .unwrap(),
+            )
             .header(reqwest::header::CONTENT_TYPE, Self::APPLICATION_JSON)
             .json(body)
             .send()
@@ -99,6 +117,12 @@ pub async fn spawn_app(test_settings: TestSettings) -> io::Result<TestApp> {
 
     let application = Application::build(configuration).await?;
     let db = application.get_db_ref().clone();
+    db.signin(Root {
+        username: "root",
+        password: "root",
+    })
+    .await
+    .expect("Failed to login to test db as root");
     let app_address =
         reqwest::Url::parse(&format!("http://127.0.0.1:{}", application.port())).unwrap();
     spawn(application.run_until_stopped());

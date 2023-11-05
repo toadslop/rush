@@ -10,6 +10,7 @@ use rand::Rng;
 use rush_data_server::model::{
     account::{Account, CreateAccountDto},
     email_address::EmailAddress,
+    instance::CreateInstanceDto,
     Table,
 };
 use std::ops::{Deref, DerefMut};
@@ -56,6 +57,7 @@ impl Dummy<Faker> for DummyAccount {
             updated_by: Some(RecordId::from((Account::name(), email.as_ref()))),
             created_at: Some(DateTime().fake_with_rng(rng)),
             updated_at: Some(DateTime().fake_with_rng(rng)),
+            password: Password(8..16).fake_with_rng(rng),
         })
     }
 }
@@ -65,5 +67,31 @@ impl Deref for DummyAccount {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+#[derive(Debug)]
+pub struct DummyCreateInstanceDto(CreateInstanceDto);
+
+impl Dummy<Faker> for DummyCreateInstanceDto {
+    fn dummy_with_rng<R: Rng + ?Sized>(_: &Faker, rng: &mut R) -> Self {
+        Self(CreateInstanceDto {
+            name: fake::faker::internet::en::DomainSuffix().fake_with_rng::<String, R>(rng),
+            account_id: SafeEmail().fake_with_rng::<String, R>(rng),
+        })
+    }
+}
+
+impl Deref for DummyCreateInstanceDto {
+    type Target = CreateInstanceDto;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for DummyCreateInstanceDto {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

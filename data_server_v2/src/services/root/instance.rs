@@ -27,7 +27,7 @@ pub async fn create_instance(
 async fn create_instance_db(
     instance: web::Json<CreateInstanceDto>,
     db: web::Data<Surreal<Any>>,
-) -> Result<Option<Instance>, CreateInstanceError> {
+) -> Result<Instance, CreateInstanceError> {
     tracing::info!("Attempting to saving new instance to the db");
     let instance: CreateInstanceDb = instance.into_inner().into();
 
@@ -35,9 +35,11 @@ async fn create_instance_db(
         .create::<Option<Instance>>((Instance::name(), instance.id()))
         .content(instance)
         .await
-        .map_err(DatabaseError::from)?;
+        .map_err(DatabaseError::from)?
+        .ok_or(CreateInstanceError::AuthenticationError)?;
 
-    tracing::info!("Success");
+    tracing::info!("Success: {:?}", instance);
+
     Ok(instance)
 }
 
@@ -45,12 +47,15 @@ async fn create_instance_db(
 pub enum CreateInstanceError {
     #[error("Failed to persist the instance to the database: {0}")]
     DatabaseError(#[from] DatabaseError),
+    #[error("User must be logged-in to create an instance")]
+    AuthenticationError,
 }
 
 impl ResponseError for CreateInstanceError {
     fn status_code(&self) -> StatusCode {
         match self {
             CreateInstanceError::DatabaseError(e) => e.status_code(),
+            CreateInstanceError::AuthenticationError => StatusCode::UNAUTHORIZED,
         }
     }
 

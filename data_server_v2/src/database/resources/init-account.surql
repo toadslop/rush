@@ -24,9 +24,9 @@ DEFINE INDEX email ON account FIELDS email UNIQUE;
 
 DEFINE FIELD password ON account TYPE string
     # TODO: consider removing update/create permissions and make a dedicated update password function
+	VALUE crypto::argon2::generate($value)
 	PERMISSIONS FOR select, create, update
-		WHERE id = $auth.id
-		ASSERT string::len($value) >= 8 AND string::len($value) <= 16;
+		WHERE id = $auth.id;
 
 # An account must have have a confirmed email before it can create instances.
 DEFINE FIELD confirmed ON account TYPE bool
@@ -114,15 +114,25 @@ DEFINE FUNCTION fn::confirm_account($conf_token: uuid) {
 	RETURN $account;
 };
 
+-- BEGIN TRANSACTION;
+--             LET $saved = CREATE ONLY account CONTENT $account;
+--             LET $conf_token = (SELECT ->has->confirmation_token.token FROM $saved)[0]["->has"]["->confirmation_token"].token[0];
+--             RETURN {
+--                 account: $saved,
+--                 token: $conf_token
+--             };
+--             COMMIT TRANSACTION;
+
 # Scope for account login
 DEFINE SCOPE account SESSION 15m
 	SIGNIN (
 		SELECT * FROM account WHERE email = $email AND crypto::argon2::compare(password, $password)
 	)
 	SIGNUP (
-		CREATE account CONTENT {
-			name: $name,
-			email: $email,
-			password: crypto::argon2::generate($password)
-		}
-	);
+        CREATE ONLY type::thing("account", $email) CONTENT {
+				name: $name,
+				email: $email,
+				password: crypto::argon2::generate($password)
+		}		
+	)
+;

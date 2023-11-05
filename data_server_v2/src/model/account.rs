@@ -45,6 +45,7 @@ pub struct Account {
     pub name: Option<String>,
     pub confirmed: Option<bool>,
     pub instances: Option<Vec<RecordId>>,
+    pub password: Option<String>,
     pub created_by: Option<RecordId>,
     pub updated_by: Option<RecordId>,
     pub created_at: Option<DateTime<Utc>>,
@@ -55,4 +56,10 @@ impl Table for Account {
     fn name() -> &'static str {
         TABLE_NAME
     }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AccountSignin {
+    pub email: EmailAddress,
+    pub password: String,
 }

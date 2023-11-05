@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 actix-web.workspace = true
+actix-web-httpauth = "0.8.1"
 anyhow = "1.0.75"
 chrono = "0.4.31"
 claims = "0.7.1"

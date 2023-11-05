@@ -41,7 +41,7 @@ pub async fn confirm(
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfirmAccountError {
-    #[error("Failed to persist the account to the database: {0}")]
+    #[error("Failed to persist the token to the database: {0}")]
     DatabaseError(#[from] DatabaseError),
 }
 
