@@ -2,6 +2,7 @@ use crate::services::error::{DatabaseError, ErrorResponse};
 use actix_web::http::StatusCode;
 use actix_web::{web, HttpResponse, ResponseError};
 use serde::Deserialize;
+use surrealdb::opt::auth::Root;
 use surrealdb::{engine::any::Any, Surreal};
 use uuid::Uuid;
 
@@ -17,6 +18,13 @@ pub async fn confirm(
     db: web::Data<Surreal<Any>>,
 ) -> Result<HttpResponse, ConfirmAccountError> {
     tracing::trace!("Beginning account confirmation");
+    db.signin(Root {
+        // TODO: handle root db signin for specific endpoints
+        username: "root",
+        password: "root",
+    })
+    .await
+    .unwrap();
 
     let response = db
         .query(format!("fn::confirm_account('{}')", parameters.token))

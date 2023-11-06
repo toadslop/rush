@@ -2,6 +2,7 @@ use super::{email_address::EmailAddress, CreateTable, Table};
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use surrealdb::opt::RecordId;
+use uuid::Uuid;
 
 const TABLE_NAME: &str = "account";
 /// Represents the JSON object that a user would submit
@@ -62,4 +63,10 @@ impl Table for Account {
 pub struct AccountSignin {
     pub email: EmailAddress,
     pub password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateAccountResp {
+    pub account: Account,
+    pub token: Uuid,
 }

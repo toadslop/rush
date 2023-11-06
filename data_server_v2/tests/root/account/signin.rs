@@ -41,9 +41,7 @@ async fn user_receives_jwt_after_attempting_signin_with_valid_credentials() {
         .map_err(|e| e.to_string())
         .expect("Failed to create test account");
 
-    let account = account.expect("Failed to create a test account");
-
-    dbg!(account);
+    account.expect("Failed to create a test account");
 
     let res = test_app
         .signin_account(&AccountSignin {
@@ -52,10 +50,7 @@ async fn user_receives_jwt_after_attempting_signin_with_valid_credentials() {
         })
         .await;
 
-    let jwt = res
-        .json::<Jwt>()
+    res.json::<Jwt>()
         .await
         .expect("Failed to get valid JWT from signing endpoint");
-
-    println!("{}", jwt.into_insecure_token());
 }

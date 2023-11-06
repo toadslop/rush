@@ -139,7 +139,7 @@ async fn create_instance_returns_a_400_when_data_is_missing() {
 }
 
 #[actix_web::test]
-async fn trying_to_create_instance_when_not_logged_in_returns_403() {
+async fn trying_to_create_instance_when_not_logged_in_returns_401() {
     // Arrange
     let test_app = spawn_app(TestSettings { spawn_smtp: false })
         .await
@@ -166,6 +166,6 @@ async fn trying_to_create_instance_when_not_logged_in_returns_403() {
     assert_eq!(
         401,
         resp.status().as_u16(),
-        "The API did not fail with 403 Not Authorized when the requester was not logged in"
+        "The API did not fail with 401 Unauthorized when the requester was not logged in"
     );
 }

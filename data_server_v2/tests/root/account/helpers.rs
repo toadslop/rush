@@ -33,10 +33,11 @@ pub fn extract_confirmation_link(s: &str) -> reqwest::Url {
 pub async fn post_dummy_account(test_app: &TestApp) -> Account {
     let body: DummyAccountDto = Faker.fake();
 
-    test_app
-        .post_account(&body)
-        .await
-        .json()
+    let res = test_app.post_account(&body).await;
+
+    dbg!(res.status());
+
+    res.json()
         .await
         .expect("Failed to deserialize account from response.")
 }

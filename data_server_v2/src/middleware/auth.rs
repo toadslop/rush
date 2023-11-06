@@ -57,6 +57,14 @@ where
                 Ok(creds) => creds,
                 Err(_) => {
                     tracing::debug!("No creds found. Authenticating as guest");
+                    let db = req
+                        .app_data::<web::Data<Surreal<Any>>>()
+                        .expect("Should have the db")
+                        .clone(); // TODO: handle error properly
+
+                    db.invalidate()
+                        .await
+                        .expect("Failed to invalidate connection");
                     let res = srv.call(req).await?;
                     return Ok(res);
                 }

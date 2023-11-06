@@ -1,7 +1,8 @@
 use crate::configuration::app::ApplicationSettings;
+use crate::model::account::CreateAccountResp;
 use crate::services::error::ErrorResponse;
 use crate::{
-    model::account::{Account, CreateAccountDb, CreateAccountDto},
+    model::account::{CreateAccountDb, CreateAccountDto},
     services::error::DatabaseError,
 };
 use actix_web::http::uri::InvalidUri;
@@ -11,15 +12,9 @@ use lettre::address::AddressError;
 use lettre::{
     message::header::ContentType, AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
 };
-use serde::Deserialize;
+use surrealdb::opt::auth::Root;
 use surrealdb::{engine::any::Any, Surreal};
 use uuid::Uuid;
-
-#[derive(Debug, Deserialize)]
-struct CreateAccountResp {
-    account: Account,
-    token: Uuid,
-}
 
 #[tracing::instrument(skip(mailer, db))]
 pub async fn create_account(
@@ -29,16 +24,26 @@ pub async fn create_account(
     settings: web::Data<ApplicationSettings>,
 ) -> Result<HttpResponse, CreateAccountError> {
     tracing::trace!("Reached create_account route handler");
+    db.signin(Root {
+        // TODO: handle root db signin for specific endpoints
+        username: "root",
+        password: "root",
+    })
+    .await
+    .unwrap();
     let (resp, account) = match create_account_db(instance, db).await {
-        Ok(account) => (
-            HttpResponse::Ok().json(
-                &account
-                    .as_ref()
-                    .ok_or(CreateAccountError::MissingAccountError)?
-                    .account,
-            ),
-            account,
-        ),
+        Ok(account) => {
+            dbg!(&account.as_ref().unwrap());
+            (
+                HttpResponse::Ok().json(
+                    &account
+                        .as_ref()
+                        .ok_or(CreateAccountError::MissingAccountError)?
+                        .account,
+                ),
+                account,
+            )
+        }
         Err(e) => {
             tracing::error!("Confirmation email send failed with error: {e}");
             (HttpResponse::BadRequest().finish(), None)
