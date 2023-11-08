@@ -1,6 +1,6 @@
-use opentelemetry::{
-    global, runtime::TokioCurrentThread, sdk::propagation::TraceContextPropagator,
-};
+use opentelemetry::global;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::runtime::TokioCurrentThread;
 use std::{
     fs::{self, File},
     io::{self, stdout},
