@@ -3,8 +3,17 @@ POST http://localhost:8080/account HTTP/1.1
 content-type: application/json
 
 {
-    "name": "test",
-    "email": "tesst@test.com",
+    "name": "test15",
+    "email": "test15@test.com",
+    "password": "something"
+}
+
+### Sign in
+POST http://localhost:8080/account/signin HTTP/1.1
+content-type: application/json
+
+{
+    "email": "test15@test.com",
     "password": "something"
 }
 
@@ -27,7 +36,7 @@ Accept: application/json
     "ns": "root",
     "db": "root",
     "sc": "account",
-    "email": "tsssssst@test.com",
+    "email": "tes3t@test.com",
     "password": "12345578333",
     "name": "My Cool Coorporation"
 }

@@ -70,16 +70,16 @@ where
                 }
             };
 
-            tracing::debug!("Extracted cred: {}", creds.token());
-
             let db = req
                 .app_data::<web::Data<Surreal<Any>>>()
                 .expect("Should have the db")
                 .clone(); // TODO: handle error properly
 
-            db.authenticate(creds.token())
-                .await
-                .expect("Failed to authenticate"); // TODO: handle error properly
+            dbg!(creds.token());
+            match db.authenticate(creds.token()).await {
+                Ok(_) => {}
+                Err(e) => println!("HERE {e}"),
+            }; // TODO: handle error properly
 
             let res = srv.call(req).await?;
 

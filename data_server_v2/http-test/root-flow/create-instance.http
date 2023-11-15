@@ -1,10 +1,12 @@
 # Should fail
 POST http://localhost:8080/instance HTTP/1.1
 accept: application/json
+content-type: application/json
+# Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpYXQiOjE3MDAwMzE0MTcsIm5iZiI6MTcwMDAzMTQxNywiZXhwIjoxNzAwMDMyMzE3LCJpc3MiOiJTdXJyZWFsREIiLCJOUyI6InJvb3QiLCJEQiI6InJvb3QiLCJTQyI6ImFjY291bnQiLCJJRCI6ImFjY291bnQ64p-odGVzdDE1QHRlc3QuY29t4p-pIn0.bxPbNAzG5Iiva2wAD2LPBY5PBhZI--SbZwA-NCNrUH7ZJW9tfLz85iUwxzitx5K0xJb_gZnN8zkxC5RJ2QUMFw
 
 {
     "name": "aa",
-    "account_id": "test@@test.com"
+    "account_id": "test15@test.com"
 }
 
 ###

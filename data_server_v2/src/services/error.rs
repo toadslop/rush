@@ -14,6 +14,7 @@ impl ResponseError for DatabaseError {
                 surrealdb::error::Db::FieldValue { .. } => StatusCode::BAD_REQUEST,
                 surrealdb::error::Db::TxFailure => StatusCode::BAD_REQUEST,
                 surrealdb::error::Db::QueryNotExecuted => StatusCode::BAD_REQUEST,
+                surrealdb::error::Db::SingleOnlyOutput => StatusCode::BAD_REQUEST,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             surrealdb::Error::Api(e) => match e {

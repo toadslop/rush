@@ -24,7 +24,6 @@ DEFINE INDEX email ON account FIELDS email UNIQUE;
 
 DEFINE FIELD password ON account TYPE string
     # TODO: consider removing update/create permissions and make a dedicated update password function
-	VALUE crypto::argon2::generate($value)
 	PERMISSIONS FOR select, create, update
 		WHERE id = $auth.id;
 
@@ -107,32 +106,21 @@ DEFINE FUNCTION fn::confirm_account($conf_token: uuid) {
 		THROW "Token is expired. Please reissue."
 	} END;
 
-	$account = UPDATE $account MERGE {
-		confirmed: true
+	UPDATE $account.id MERGE {
+		confirmed: true,
 	};
-	
-	RETURN $account;
 };
-
--- BEGIN TRANSACTION;
---             LET $saved = CREATE ONLY account CONTENT $account;
---             LET $conf_token = (SELECT ->has->confirmation_token.token FROM $saved)[0]["->has"]["->confirmation_token"].token[0];
---             RETURN {
---                 account: $saved,
---                 token: $conf_token
---             };
---             COMMIT TRANSACTION;
 
 # Scope for account login
 DEFINE SCOPE account SESSION 15m
 	SIGNIN (
-		SELECT * FROM account WHERE email = $email AND crypto::argon2::compare(password, $password)
+		SELECT * FROM account WHERE email = $email AND crypto::argon2::compare(password, $password) AND confirmed = true
 	)
-	SIGNUP (
-        CREATE ONLY type::thing("account", $email) CONTENT {
+	SIGNUP {
+		CREATE ONLY type::thing("account", $email) CONTENT {
 				name: $name,
 				email: $email,
 				password: crypto::argon2::generate($password)
-		}		
-	)
+		}
+	}
 ;

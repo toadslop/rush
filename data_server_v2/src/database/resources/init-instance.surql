@@ -11,7 +11,8 @@ DEFINE FIELD name ON instance
 
 # Reference to the account that owns the instance
 DEFINE FIELD account ON instance
-    TYPE record(account);
+    TYPE record(account)
+    ASSERT string::len(type::string($value)) > 0;
 
 # Need to know what database this instance exists on.
 # Needed because dev and UAT instances need to be hosted on a separate instance

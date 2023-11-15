@@ -1,4 +1,5 @@
 use actix_web::rt::spawn;
+use actix_web_httpauth::headers::authorization::Bearer;
 use get_port::Ops;
 use once_cell::sync::Lazy;
 use rand::Rng;
@@ -23,7 +24,12 @@ use std::{
     fmt::Display,
     process::{Child, Command},
 };
-use surrealdb::{engine::any::Any, opt::auth::Root, sql::Uuid, Surreal};
+use surrealdb::{
+    engine::any::Any,
+    opt::auth::{Jwt, Root},
+    sql::Uuid,
+    Surreal,
+};
 
 pub struct TestApp {
     pub app_address: reqwest::Url,
@@ -62,7 +68,22 @@ impl TestApp {
             .expect("failed to execute request")
     }
 
-    pub async fn post_instance(&self, body: &CreateInstanceDto) -> reqwest::Response {
+    pub async fn post_instance(&self, body: &CreateInstanceDto, jwt: Jwt) -> reqwest::Response {
+        dbg!(Bearer::new(jwt.clone().into_insecure_token()).to_string());
+        reqwest::Client::new()
+            .post(self.app_address.join(Self::INSTANCE_ENDPOINT).unwrap())
+            .header(reqwest::header::CONTENT_TYPE, Self::APPLICATION_JSON)
+            .header(
+                reqwest::header::AUTHORIZATION,
+                Bearer::new(jwt.into_insecure_token()).to_string(),
+            )
+            .json(body)
+            .send()
+            .await
+            .expect("failed to execute request")
+    }
+
+    pub async fn post_instance_no_auth(&self, body: &CreateInstanceDto) -> reqwest::Response {
         reqwest::Client::new()
             .post(self.app_address.join(Self::INSTANCE_ENDPOINT).unwrap())
             .header(reqwest::header::CONTENT_TYPE, Self::APPLICATION_JSON)
@@ -88,6 +109,16 @@ impl TestApp {
             .send()
             .await
             .expect("failed to execute request")
+    }
+
+    pub async fn login_as_root(&self) {
+        self.db
+            .signin(Root {
+                username: "root",
+                password: "root",
+            })
+            .await
+            .unwrap();
     }
 }
 

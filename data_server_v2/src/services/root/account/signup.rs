@@ -32,18 +32,15 @@ pub async fn create_account(
     .await
     .unwrap();
     let (resp, account) = match create_account_db(instance, db).await {
-        Ok(account) => {
-            dbg!(&account.as_ref().unwrap());
-            (
-                HttpResponse::Ok().json(
-                    &account
-                        .as_ref()
-                        .ok_or(CreateAccountError::MissingAccountError)?
-                        .account,
-                ),
-                account,
-            )
-        }
+        Ok(account) => (
+            HttpResponse::Ok().json(
+                &account
+                    .as_ref()
+                    .ok_or(CreateAccountError::MissingAccountError)?
+                    .account,
+            ),
+            account,
+        ),
         Err(e) => {
             tracing::error!("Confirmation email send failed with error: {e}");
             (HttpResponse::BadRequest().finish(), None)
@@ -60,7 +57,7 @@ pub async fn create_account(
             }
         }
     }
-
+    dbg!(&resp);
     tracing::trace!("Handler exited");
     Ok(resp)
 }
@@ -76,7 +73,12 @@ async fn create_account_db(
     let result = db // TODO: refactor to use the transaction wrapper class
         .query(r#"
             BEGIN TRANSACTION;
-            LET $saved = CREATE ONLY account CONTENT $account;
+            LET $saved = CREATE ONLY account CONTENT {
+                email: $email,
+                password: crypto::argon2::generate($password),
+                name: $name,
+                id: $id
+            };
             LET $conf_token = (SELECT ->has->confirmation_token.token FROM $saved)[0]["->has"]["->confirmation_token"].token[0];
             RETURN {
                 account: $saved,
@@ -85,7 +87,7 @@ async fn create_account_db(
             COMMIT TRANSACTION;
         "#,
         )
-        .bind(("account", account))
+        .bind(account)
         .await.map_err(DatabaseError::from)?;
 
     let mut result = result

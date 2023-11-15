@@ -16,10 +16,10 @@ pub struct CreateAccountDto {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CreateAccountDb {
-    email: String,
-    password: String,
-    id: RecordId,
-    name: String,
+    pub email: String,
+    pub password: String,
+    pub id: RecordId,
+    pub name: String,
 }
 
 impl CreateTable for CreateAccountDb {

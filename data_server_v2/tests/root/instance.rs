@@ -1,16 +1,14 @@
+use crate::root::account::helpers::post_account_and_login;
 use crate::{
-    root::fakes::{DummyAccountDto, DummyCreateInstanceDto},
+    root::fakes::DummyCreateInstanceDto,
     util::{spawn_app, TestSettings},
 };
 use fake::{
-    faker::{
-        company::{en::BsAdj, en::BsNoun},
-        internet::en::SafeEmail,
-    },
+    faker::company::{en::BsAdj, en::BsNoun},
     Fake, Faker,
 };
 use rush_data_server::model::{
-    account::{Account, CreateAccountDb},
+    account::Account,
     instance::{CreateInstanceDto, Instance},
     Table,
 };
@@ -18,40 +16,24 @@ use surrealdb::opt::RecordId;
 
 #[actix_web::test]
 async fn create_instance_returns_200_for_valid_input() {
-    let test_app = spawn_app(TestSettings { spawn_smtp: false })
+    let mut test_app = spawn_app(TestSettings { spawn_smtp: true })
         .await
         .expect("Failed to spawn app.");
 
-    test_app
-        .db
-        .use_ns("root")
-        .use_db("root")
-        .await
-        .expect("Failed to connect to root ns and root db");
-
-    let _dummy_account: DummyAccountDto = Faker.fake();
-    let dummy_account: CreateAccountDb = (*_dummy_account).clone().into();
-
-    test_app
-        .db
-        .create::<Option<Account>>((Account::name(), _dummy_account.email.clone()))
-        .content(&dummy_account)
-        .await
-        .map_err(|e| e.to_string())
-        .expect("Failed to create test account");
+    let (account, jwt) = post_account_and_login(&mut test_app).await;
 
     let instance_name = "my-instance";
 
     let body = CreateInstanceDto {
         name: instance_name.into(),
-        account_id: _dummy_account.email.clone(),
+        account_id: account.email.clone().unwrap().0,
     };
 
-    let response = test_app.post_instance(&body).await;
+    let response = test_app.post_instance(&body, jwt).await;
 
     assert_eq!(200, response.status().as_u16());
-    let body = &response.text().await.unwrap();
-    dbg!(body);
+
+    test_app.login_as_root().await;
 
     let instance: Option<Instance> = test_app
         .db
@@ -59,6 +41,7 @@ async fn create_instance_returns_200_for_valid_input() {
         .await
         .expect("Failed to find the created instance in the database");
 
+    println!("HEEEEEEEEEEEEEEEEEEEEEEEEEEE");
     dbg!(&instance);
 
     let name = instance
@@ -67,7 +50,7 @@ async fn create_instance_returns_200_for_valid_input() {
         .expect("Instance should have a name");
 
     assert_eq!(instance_name, name);
-    dbg!(&_dummy_account);
+
     let mut result = test_app
         .db
         .query("SELECT instances[WHERE $instance_id] FROM $account_id")
@@ -77,7 +60,7 @@ async fn create_instance_returns_200_for_valid_input() {
         ))
         .bind((
             "account_id",
-            RecordId::from((Account::name(), _dummy_account.email.clone().as_ref())),
+            RecordId::from((Account::name(), account.email.clone().unwrap().as_ref())),
         ))
         .await
         .map_err(|e| e.to_string())
@@ -89,7 +72,7 @@ async fn create_instance_returns_200_for_valid_input() {
         .expect("Encountered an error when trying to take the account");
 
     let account = account.expect("Tried to unwrap the account but got none");
-    dbg!(&account);
+
     let instances = account
         .instances
         .expect("Should have found a vec of instances but it was None");
@@ -105,9 +88,11 @@ async fn create_instance_returns_200_for_valid_input() {
 
 #[actix_web::test]
 async fn create_instance_returns_a_400_when_data_is_missing() {
-    let test_app = spawn_app(TestSettings { spawn_smtp: false })
+    let mut test_app = spawn_app(TestSettings { spawn_smtp: true })
         .await
         .expect("Failed to spawn app.");
+
+    let (account, jwt) = post_account_and_login(&mut test_app).await;
 
     let test_cases = [
         (
@@ -115,19 +100,19 @@ async fn create_instance_returns_a_400_when_data_is_missing() {
                 name: format!("{}_{}", BsAdj().fake::<String>(), BsNoun().fake::<String>()),
                 account_id: "".into(),
             },
-            "no account id",
+            "missing account id",
         ),
         (
             CreateInstanceDto {
                 name: "".into(),
-                account_id: SafeEmail().fake(),
+                account_id: account.email.unwrap().0,
             },
-            "no instance name",
+            "missing instance name",
         ),
     ];
 
     for (body, error_message) in test_cases {
-        let response = test_app.post_instance(&body).await;
+        let response = test_app.post_instance(&body, jwt.clone()).await;
 
         assert_eq!(
             400,
@@ -145,22 +130,10 @@ async fn trying_to_create_instance_when_not_logged_in_returns_401() {
         .await
         .expect("Failed to spawn app.");
 
-    let _dummy_account: DummyAccountDto = Faker.fake();
-    let dummy_account: CreateAccountDb = (*_dummy_account).clone().into();
-
-    test_app
-        .db
-        .create::<Option<Account>>((Account::name(), _dummy_account.email.clone()))
-        .content(&dummy_account)
-        .await
-        .map_err(|e| e.to_string())
-        .expect("Failed to create test account");
-
-    let mut dummy_instance: DummyCreateInstanceDto = Faker.fake();
-    dummy_instance.account_id = _dummy_account.email.clone();
+    let dummy_instance: DummyCreateInstanceDto = Faker.fake();
 
     // Act
-    let resp = test_app.post_instance(&dummy_instance).await;
+    let resp = test_app.post_instance(&dummy_instance, "".into()).await;
 
     // Assert
     assert_eq!(

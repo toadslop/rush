@@ -1,9 +1,14 @@
 TODO
 [x] Make instance selectable from the account direction
 [x] Make creating the instance associate it with the account
-[ ] Handle email confirmation flow
-[ ] Set up authentication middleware backed by surrealdb
+[x] Handle email confirmation flow
+[x] Set up authentication middleware backed by surrealdb
 [ ] clean up email test code
 [ ] clean up error handling and provide proper error messags
+[ ] refactor all tests to properly login when logging in is required
+[ ] make test confirming that a non-confirmed user cannot sign in
+[ ] Refactor authentication to specifically mark routes that require authentication as such; do not rely on DB
+[ ] Remove the default to authentication error on the create instance endpoint
 
 NOTE: RUST_MIN_STACK=104857600 cargo test
+

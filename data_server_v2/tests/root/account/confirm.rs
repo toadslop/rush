@@ -23,7 +23,7 @@ async fn the_link_returned_by_subscribe_returns_a_200_if_called() {
     let message = extract_confirmation_email(&mut test_app).await;
     let body = extract_message_body(&mut test_app, message.id, MailMessageFormat::Html).await;
     let link = extract_confirmation_link(&body);
-    dbg!(&link);
+
     assert_eq!(
         link.host_str().unwrap(),
         test_app.app_address.host_str().unwrap()
